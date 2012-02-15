@@ -6,3 +6,4 @@ moc_*
 *.autosave
 
 libsshqt-runprocess
+libsshqt-processtofile
