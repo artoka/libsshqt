@@ -1,0 +1,101 @@
+
+
+
+ libsshqt, The libssh Qt Wrapper
+=================================
+
+ - First, libsshqt is not a SSH implementation, it only wraps libssh functions
+   and data structures to Qt classes.
+
+ - Currently only starting remote processes is supported. It should be easy to
+   add support for other features later.
+
+ - libsshqt does not attempt to hide the fact that you are using libssh, you can
+   still access libssh directly if you need to.
+
+ - Older versions of libssh have bugs in asynchronous mode, which may cause
+   problems.
+
+
+
+ Supported environment
+=======================
+
+ I have tested libsshqt in OpenSUSE 12.1, with libssh 0.5.1 and Qt 4.7.4.
+
+ I don't see any reason why it should not work in other environments, but
+ patches are welcome if you find problems.
+
+
+
+ Author
+========
+
+ Arto Karppinen <arto.karppinen@iki.fi>
+
+
+
+ How to use libsshqt
+=====================
+
+ Currently libsshqt isn't a library, it is just couple of wrapper classes which
+ you are supposed to build directly into your application.
+
+ 1. Extract libsshqt:
+
+    tar xvf libsshqt.tar
+
+ 2. Include libsshqt.pri in your QMake project file:
+
+    include(./libsshqt/libsshqt.pri)
+
+    ...or just copy the sources to your source directory.
+
+
+
+ Debugging libsshqt
+====================
+
+ You can enable debugging in libsshqt by setting the environment variable
+ LIBSSHQT_DEBUG or by enabling it programmatically by calling
+ LibsshQtClient::setDebug().
+
+ Setting libsshqt_DEBUG variable in a shell:
+
+    export LIBSSHQT_DEBUG=1
+
+ Enabling debugging programmatically:
+
+    LibsshQtClient *client = new LibsshQtClient();
+    client->setDebug(true);
+
+
+
+ libsshqt Design
+=================
+
+ libssh contains support for an asynchronous mode, in this mode libssh functions
+ return SSH_AGAIN return code when the function would otherwise block the
+ execution of the application and wait for data.
+
+ LibsshQtClient enables asynchronous mode on the ssh_session which it wraps and
+ implements a state machine that calls and re-calls libssh functions when
+ they return SSH_AGAIN. Once a libssh function returns successfully, the
+ state is changed to the next state, which matches the next libssh function that
+ needs to be called and the process is repeated. This behavior is implemented
+ in the processState() function.
+
+ LibsshQtClient uses QSocketNotifier to monitor the socket used by libssh and
+ will call processState() function whenever the socket is either readable or
+ writable. If the connection is in open state, LibsshQtClient sends
+ doProcessState signal, which causes child objects to process their state in the
+ same way that LibsshQtClient uses.
+
+ If processState() needs to be executed manually, for example because user
+ called connectToHost(), a QTimer is used to activate the function once
+ Qt's main loop is in idle state.
+
+ The result is that libsshqt classes will always call processState() from Qt's
+ main loop and always process only one state at a time and should call libssh
+ functions only when neccessary. This means that libsshqt should behave very
+ nicely and should not cause any delays or excessive CPU usage.
