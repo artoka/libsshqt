@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = runprocess processtofile
+SUBDIRS = runprocess processtofile filetoprocess
