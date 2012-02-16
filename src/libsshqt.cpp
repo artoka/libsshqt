@@ -179,10 +179,12 @@ QString LibsshQtClient::flagsToString(const AuthMethods flags)
 void LibsshQtClient::setDebug(bool enabled)
 {
     if ( enabled ) {
-        qDebug() << __func__ << ": Enabling debug messages";
         debug_output_ = true;
+        LIBSSHQT_DEBUG("Enabling debug messages");
         setVerbosity(LogProtocol);
+
     } else {
+        LIBSSHQT_DEBUG("Disabling debug messages");
         debug_output_ = false;
         setVerbosity(LogDisable);
     }
