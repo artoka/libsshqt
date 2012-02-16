@@ -59,6 +59,8 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
     debug_output_(false),
     session_(0),
     state_(StateClosed),
+    process_state_running_(false),
+    enable_writable_nofifier_(false),
     port_(22),
     read_notifier_(0),
     write_notifier_(0),
@@ -76,7 +78,7 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
 
     timer_.setSingleShot(true);
     timer_.setInterval(0);
-    connect(&timer_, SIGNAL(timeout()), this, SLOT(processState()));
+    connect(&timer_, SIGNAL(timeout()), this, SLOT(processStateGuard()));
 
     session_ = ssh_new();
     if ( ! session_ ) {
@@ -504,6 +506,15 @@ ssh_session LibsshQtClient::sshSession()
     return session_;
 }
 
+void LibsshQtClient::enableWritableNotifier()
+{
+    if ( process_state_running_ ) {
+        enable_writable_nofifier_ = true;
+    } else if ( write_notifier_ ) {
+        write_notifier_->setEnabled(true);
+    }
+}
+
 /*!
     Change session state and send appropriate signals.
 */
@@ -541,8 +552,9 @@ void LibsshQtClient::setUpNotifiers()
         read_notifier_ = new QSocketNotifier(socket,
                                              QSocketNotifier::Read,
                                              this);
+        read_notifier_->setEnabled(true);
         connect(read_notifier_, SIGNAL(activated(int)),
-                this, SLOT(checkSocket(int)));
+                this, SLOT(handleSocketReadable(int)));
     }
 
     if ( ! write_notifier_ ) {
@@ -552,18 +564,42 @@ void LibsshQtClient::setUpNotifiers()
         write_notifier_ = new QSocketNotifier(socket,
                                               QSocketNotifier::Write,
                                               this);
+        write_notifier_->setEnabled(true);
         connect(write_notifier_, SIGNAL(activated(int)),
-                this, SLOT(checkSocket(int)));
+                this, SLOT(handleSocketWritable(int)));
     }
 }
 
-void LibsshQtClient::checkSocket(int /*socket*/)
+void LibsshQtClient::handleSocketReadable(int socket)
 {
+    Q_UNUSED( socket );
+
     read_notifier_->setEnabled(false);
-    write_notifier_->setEnabled(false);
-    processState();
-    write_notifier_->setEnabled(true);
+    processStateGuard();
     read_notifier_->setEnabled(true);
+}
+
+void LibsshQtClient::handleSocketWritable(int socket)
+{
+    Q_UNUSED( socket );
+
+    enable_writable_nofifier_ = false;
+    write_notifier_->setEnabled(false);
+    processStateGuard();
+}
+
+void LibsshQtClient::processStateGuard()
+{
+    Q_ASSERT( ! process_state_running_ );
+    if ( process_state_running_ ) return;
+
+    process_state_running_ = true;
+    processState();
+    process_state_running_ = false;
+
+    if ( enable_writable_nofifier_ ) {
+        write_notifier_->setEnabled(true);
+    }
 }
 
 void LibsshQtClient::processState()
@@ -588,7 +624,7 @@ void LibsshQtClient::processState()
 
         switch ( rc ) {
         case SSH_AGAIN:
-            //timer_.start();
+            enableWritableNotifier();
             return;
 
         case SSH_ERROR:
@@ -660,7 +696,7 @@ void LibsshQtClient::processState()
 
         switch ( rc ) {
         case SSH_AUTH_AGAIN:
-            //timer_.start();
+            enableWritableNotifier();
             return;
 
         case SSH_AUTH_ERROR:
@@ -690,6 +726,7 @@ void LibsshQtClient::processState()
         case SSH_AUTH_SUCCESS:
             LIBSSHQT_DEBUG("Automatic public key authentication success");
             setState(StateOpened);
+            timer_.start();
             return;
 
         default:
@@ -708,7 +745,7 @@ void LibsshQtClient::processState()
 
         switch ( rc ) {
         case SSH_AUTH_AGAIN:
-            //timer_.start();
+            enableWritableNotifier();
             return;
 
         case SSH_AUTH_ERROR:
@@ -732,6 +769,7 @@ void LibsshQtClient::processState()
 
         case SSH_AUTH_SUCCESS:
             setState(StateOpened);
+            timer_.start();
             return;
 
         default:
@@ -908,6 +946,7 @@ bool LibsshQtChannel::canReadLine() const
 {
     return QIODevice::canReadLine() ||
            read_buffer_.contains('\n') ||
+           read_buffer_.size() >= buffer_size_ ||
            ( isOpen() == false && atEnd() == false );
 }
 
@@ -995,6 +1034,11 @@ void LibsshQtChannel::checkIo()
         }
     }
 
+    // Write more data once the socket is ready
+    if ( write_buffer_.size() > 0 ) {
+        client_->enableWritableNotifier();
+    }
+
     // Send EOF once all data has been written to channel
     if ( eof_state_ == EofQueued && write_buffer_.size() == 0 ) {
         LIBSSHQT_DEBUG("Sending EOF to channel");
@@ -1014,6 +1058,8 @@ void LibsshQtChannel::checkIo()
 
 qint64 LibsshQtChannel::readData(char *data, qint64 maxlen)
 {
+    queueCheckIo();
+
     qint64 copy_len  = maxlen;
     int    data_size = read_buffer_.size();
 
@@ -1029,9 +1075,11 @@ qint64 LibsshQtChannel::readData(char *data, qint64 maxlen)
 qint64 LibsshQtChannel::writeData(const char *data, qint64 len)
 {
     if ( eof_state_ == EofNotSent ) {
+        client_->enableWritableNotifier();
         write_buffer_.reserve(write_size_);
         write_buffer_.append(data, len);
         return len;
+
     } else {
         LIBSSHQT_CRITICAL("Cannot write to channel because EOF state is" <<
                           eof_state_);
@@ -1229,7 +1277,7 @@ void LibsshQtProcess::processState()
 
         switch ( rc ) {
         case SSH_AGAIN:
-            //timer_.start();
+            client_->enableWritableNotifier();
             return;
 
         case SSH_ERROR:
@@ -1255,7 +1303,7 @@ void LibsshQtProcess::processState()
 
         switch ( rc ) {
         case SSH_AGAIN:
-            //timer_.start();
+            client_->enableWritableNotifier();
             return;
 
         case SSH_ERROR:
@@ -1281,7 +1329,10 @@ void LibsshQtProcess::processState()
     {
         checkIo();
 
-        if ( state_ == StateOpen && ssh_channel_poll(channel_, 0) == SSH_EOF ) {
+        if ( state_ == StateOpen &&
+             ssh_channel_poll(channel_, false) == SSH_EOF &&
+             ssh_channel_poll(channel_, true)  == SSH_EOF ) {
+
             exit_code_ = ssh_channel_get_exit_status(channel_);
 
             LIBSSHQT_DEBUG("Process channel EOF");
@@ -1295,7 +1346,6 @@ void LibsshQtProcess::processState()
             return;
         }
 
-        //timer_.start();
         return;
     } break;
 
@@ -1338,6 +1388,11 @@ void LibsshQtProcess::checkIo()
             }
         }
     }
+}
+
+void LibsshQtProcess::queueCheckIo()
+{
+    timer_.start();
 }
 
 void LibsshQtProcess::handleClientError()
@@ -1399,6 +1454,7 @@ void LibsshQtProcess::handleOutput(OutputBehaviourFlag &behaviour,
 
 LibsshQtProcessStderr::LibsshQtProcessStderr(LibsshQtProcess *parent) :
     QIODevice(parent),
+    parent_(parent),
     err_buffer_(0)
 {
 }
@@ -1422,6 +1478,7 @@ bool LibsshQtProcessStderr::canReadLine() const
 {
     return QIODevice::canReadLine() ||
            err_buffer_->contains('\n') ||
+           err_buffer_->size() >= parent_->buffer_size_ ||
            ( isOpen() == false && atEnd() == false );
 }
 
@@ -1444,6 +1501,7 @@ void LibsshQtProcessStderr::close()
 qint64 LibsshQtProcessStderr::readData(char *data, qint64 maxlen)
 {
     Q_ASSERT(err_buffer_);
+    parent_->queueCheckIo();
 
     qint64 copy_len  = maxlen;
     int    data_size = err_buffer_->size();

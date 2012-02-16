@@ -135,6 +135,7 @@ public:
 
     StateFlag state() const;
     ssh_session sshSession();
+    void enableWritableNotifier();
 
 signals:
     void unknownHost();
@@ -151,10 +152,12 @@ signals:
 private:
     void setState(StateFlag state);
     void setUpNotifiers();
+    void processState();
 
 private slots:
-    void checkSocket(int socket);
-    void processState();
+    void handleSocketReadable(int socket);
+    void handleSocketWritable(int socket);
+    void processStateGuard();
 
 private:
     QString     debug_prefix_;
@@ -163,6 +166,8 @@ private:
     QTimer      timer_;
     ssh_session session_;
     StateFlag   state_;
+    bool        process_state_running_;
+    bool        enable_writable_nofifier_;
 
     quint16     port_;
     QString     hostname_;
@@ -239,6 +244,7 @@ protected:
 
 public slots:
     virtual void checkIo();
+    virtual void queueCheckIo() = 0;
     virtual void processState() = 0;
 
 protected:
@@ -267,6 +273,7 @@ protected:
 class LibsshQtProcess : public LibsshQtChannel
 {
     Q_OBJECT
+    friend class LibsshQtProcessStderr;
 
 public:
     Q_FLAGS(StateFlag)
@@ -317,6 +324,7 @@ protected:
     void setState(StateFlag state);
     void processState();
     void checkIo();
+    void queueCheckIo();
 
 private slots:
     void handleClientError();
@@ -367,6 +375,7 @@ protected:
     qint64 writeData(const char *data, qint64 len);
 
 private:
+    LibsshQtProcess *parent_;
     QByteArray *err_buffer_;
 };
 
