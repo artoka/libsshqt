@@ -408,14 +408,14 @@ private:
 inline QDebug operator<<(QDebug dbg, const LibsshQtClient *client)
 {
     if ( client->state() == LibsshQtClient::StateError ) {
-        dbg.nospace() << "LibsshQtClient("
+        dbg.nospace() << "LibsshQtClient( "
                       << LibsshQtClient::flagToString(client->state()) << ", "
                       << client->errorCode() << ", "
-                      << client->errorMessage() << ")";
+                      << client->errorMessage() << " )";
     } else {
-        dbg.nospace() << "LibsshQtClient("
+        dbg.nospace() << "LibsshQtClient( "
                       << LibsshQtClient::flagToString(client->state())
-                      << ")";
+                      << " )";
     }
     return dbg.space();
 }
@@ -473,14 +473,14 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtChannel::EofState flag)
 inline QDebug operator<<(QDebug dbg, const LibsshQtProcess *process)
 {
     if ( process->state() == LibsshQtProcess::StateError ) {
-        dbg.nospace() << "LibsshQtProcess("
+        dbg.nospace() << "LibsshQtProcess( "
                       << LibsshQtProcess::flagToString(process->state()) << ", "
                       << process->errorCode() << ", "
-                      << process->errorMessage() << ")";
+                      << process->errorMessage() << " )";
     } else {
-        dbg.nospace() << "LibsshQtProcess("
+        dbg.nospace() << "LibsshQtProcess( "
                       << LibsshQtProcess::flagToString(process->state())
-                      << ")";
+                      << " )";
     }
     return dbg.space();
 }

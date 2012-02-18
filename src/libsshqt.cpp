@@ -171,7 +171,7 @@ QString LibsshQtClient::flagsToString(const AuthMethods flags)
         }
     }
 
-    return QString("AuthMethods(%1)").arg(list.join(", "));
+    return QString("AuthMethods( %1 )").arg(list.join(", "));
 }
 
 QString LibsshQtClient::flagsToString(const UseAuths flags)
@@ -201,7 +201,7 @@ QString LibsshQtClient::flagsToString(const UseAuths flags)
         }
     }
 
-    return QString("UseAuths(%1)").arg(list.join(", "));
+    return QString("UseAuths( %1 )").arg(list.join(", "));
 }
 
 /*!
@@ -289,7 +289,7 @@ QUrl LibsshQtClient::url() const
 void LibsshQtClient::setUrl(QUrl &url)
 {
     if ( url.scheme().toLower() == "ssh" ) {
-        LIBSSHQT_DEBUG("Setting options from URL" << url);
+        LIBSSHQT_DEBUG("Setting options from URL:" << url);
 
         if ( url.port() > -1 ) {
             setPort(url.port());
