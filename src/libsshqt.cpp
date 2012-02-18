@@ -64,10 +64,7 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
     port_(22),
     read_notifier_(0),
     write_notifier_(0),
-    unknown_host_type_(HostKnown),
-    auth_attemp_(0),
-    use_autokey_(false),
-    use_password_(false)
+    unknown_host_type_(HostKnown)
 {
     debug_prefix_ = _getDebugPrefix(this);
 
@@ -355,25 +352,43 @@ void LibsshQtClient::disconnectFromHost()
 }
 
 /*!
-    Should automatic public key authentication be used?
+    Enable or disable the use of 'None' SSH authentication.
+*/
+void LibsshQtClient::useNoneAuth(bool enabled)
+{
+    enableDisableAuth(enabled, UseAuthNone);
+}
+
+/*!
+    Enable or disable the use of automatic public key authentication.
 
     This includes keys stored in ssh-agent and in ~/.ssh/ directory.
 */
 void LibsshQtClient::useAutoKeyAuth(bool enabled)
 {
-    use_autokey_ = enabled;
+    enableDisableAuth(enabled, UseAuthAutoPubKey);
 }
 
+/*!
+    Enable or disable the use of password based SSH authentication.
+*/
 void LibsshQtClient::usePasswordAuth(bool enabled, QString password)
 {
-    use_password_ = enabled;
+    enableDisableAuth(enabled, UseAuthPassword);
     password_ = password;
+}
 
-    if ( use_password_ && ( state_ == StateChooseAuth ||
-                            state_ == StateAuthFailed )) {
-        setState(StatePasswordAuth);
-        timer_.start();
-    }
+/*!
+    Enable or disable the use of Interactive SSH authentication.
+*/
+void LibsshQtClient::useInteractiveAuth(bool enabled)
+{
+    enableDisableAuth(enabled, UseAuthInteractive);
+}
+
+LibsshQtClient::UseAuths LibsshQtClient::failedAuths()
+{
+    return failed_auths_;
 }
 
 /*!
@@ -531,17 +546,89 @@ void LibsshQtClient::setState(StateFlag state)
     state_ = state;
 
     switch ( state_ ) {
-    case StateClosed:       emit closed();          break;
-    case StateClosing:                              break;
-    case StateConnecting:                           break;
-    case StateIsKnown:                              break;
-    case StateUnknownHost:  emit unknownHost();     break;
-    case StateChooseAuth:   emit chooseAuth();      break;
-    case StateAutoAuth:                             break;
-    case StatePasswordAuth:                         break;
-    case StateAuthFailed:   emit authFailed();      break;
-    case StateOpened:       emit opened();          break;
-    case StateError:        emit error();           break;
+    case StateClosed:           emit closed();          break;
+    case StateClosing:                                  break;
+    case StateConnecting:                               break;
+    case StateIsKnown:                                  break;
+    case StateUnknownHost:      emit unknownHost();     break;
+    case StateAuthChoose:       emit chooseAuth();      break;
+    case StateAuthContinue:                             break;
+    case StateAuthNone:                                 break;
+    case StateAuthAutoPubkey:                           break;
+    case StateAuthPassword:                             break;
+    case StateAuthInteractive:                          break;
+    case StateAuthFailed:       emit authFailed();      break;
+    case StateOpened:           emit opened();          break;
+    case StateError:            emit error();           break;
+    }
+}
+
+/*!
+    Choose next authentication method to try.
+
+    if authentication methods have not been chosen or all chosen authentication
+    methods have failed, switch state to StateChooseAuth or StateAuthFailed,
+    respectively.
+*/
+void LibsshQtClient::tryNextAuth()
+{
+    // Detect failed authentication methods
+    switch ( state_ ) {
+    case StateClosed:
+    case StateClosing:
+    case StateConnecting:
+    case StateIsKnown:
+    case StateUnknownHost:
+    case StateAuthChoose:
+    case StateAuthContinue:
+    case StateAuthFailed:
+    case StateOpened:
+    case StateError:
+        break;
+
+    case StateAuthNone:
+        failed_auths_ |= UseAuthNone;
+        break;
+
+    case StateAuthAutoPubkey:
+        failed_auths_ |= UseAuthAutoPubKey;
+        break;
+
+    case StateAuthPassword:
+        failed_auths_ |= UseAuthPassword;
+        break;
+
+    case StateAuthInteractive:
+        failed_auths_ |= UseAuthInteractive;
+        break;
+    }
+
+    // Choose next state for LibsshQtClient
+    if ( use_auths_ == UseAuthEmpty && failed_auths_ == UseAuthEmpty ) {
+        setState(StateAuthChoose);
+
+    } else if ( use_auths_ == UseAuthEmpty ) {
+        setState(StateAuthFailed);
+
+    } else if ( use_auths_ & UseAuthNone ) {
+        use_auths_ &= ~UseAuthNone;
+        setState(StateAuthNone);
+        timer_.start();
+
+    } else if ( use_auths_ & UseAuthAutoPubKey ) {
+        use_auths_ &= ~UseAuthAutoPubKey;
+        setState(StateAuthAutoPubkey);
+        timer_.start();
+
+    } else if ( use_auths_ & UseAuthPassword ) {
+        use_auths_ &= ~UseAuthPassword;
+        setState(StateAuthPassword);
+        timer_.start();
+
+    } else if ( use_auths_ & UseAuthInteractive ) {
+        use_auths_ &= ~UseAuthInteractive;
+        setState(StateAuthInteractive);
+        timer_.start();
     }
 }
 
@@ -611,7 +698,7 @@ void LibsshQtClient::processState()
     case StateClosed:
     case StateClosing:
     case StateUnknownHost:
-    case StateChooseAuth:
+    case StateAuthChoose:
     case StateAuthFailed:
     case StateError:
         return;
@@ -667,124 +754,52 @@ void LibsshQtClient::processState()
 
         case SSH_SERVER_KNOWN_OK:
             unknown_host_type_ = HostKnown;
-            break;
+            tryNextAuth();
+            return;
 
         default:
             LIBSSHQT_CRITICAL("Unknown result code" << known <<
                               "received from ssh_is_server_known()");
             return;
         }
+    } break;
 
-        if ( use_autokey_ ) {
-            setState(StateAutoAuth);
-            timer_.start();
-
-        } else if ( use_password_ ) {
-            setState(StatePasswordAuth);
-            timer_.start();
-
-        } else {
-            setState(StateChooseAuth);
-        }
-
+    case StateAuthContinue: {
+        tryNextAuth();
         return;
     } break;
 
-    case StateAutoAuth:
+    case StateAuthNone:
     {
-        Q_ASSERT( use_autokey_ );
-
-        int rc = ssh_userauth_autopubkey(session_, 0);
-
-        switch ( rc ) {
-        case SSH_AUTH_AGAIN:
-            enableWritableNotifier();
-            return;
-
-        case SSH_AUTH_ERROR:
-            LIBSSHQT_DEBUG("Automatic public key authentication error:" <<
-                           errorCodeAndMessage());
-            setState(StateError);
-            return;
-
-        case SSH_AUTH_DENIED:
-        case SSH_AUTH_PARTIAL:
-
-            if ( rc == SSH_AUTH_DENIED ) {
-                LIBSSHQT_DEBUG("Automatic public key authentication denied");
-            } else if ( rc == SSH_AUTH_PARTIAL ) {
-                LIBSSHQT_DEBUG("Partial automatic public key authentication");
-            }
-
-            if ( use_password_ ) {
-                setState(StatePasswordAuth);
-                timer_.start();
-            } else {
-                setState(StateChooseAuth);
-            }
-
-            return;
-
-        case SSH_AUTH_SUCCESS:
-            LIBSSHQT_DEBUG("Automatic public key authentication success");
-            setState(StateOpened);
-            timer_.start();
-            return;
-
-        default:
-            LIBSSHQT_CRITICAL("Unknown result code" << rc <<
-                              "received from ssh_userauth_autopubkey()");
-            return;
-        }
+        int rc = ssh_userauth_none(session_, 0);
+        handleAuthResponse(rc, "ssh_userauth_none", UseAuthNone);
+        return;
     } break;
 
-    case StatePasswordAuth:
+    case StateAuthAutoPubkey:
     {
-        Q_ASSERT( use_password_ );
+        int rc = ssh_userauth_autopubkey(session_, 0);
+        handleAuthResponse(rc, "ssh_userauth_autopubkey", UseAuthAutoPubKey);
+        return;
+    } break;
 
+    case StateAuthPassword:
+    {
         QByteArray utf8pw = password_.toUtf8();
         int rc = ssh_userauth_password(session_, 0, utf8pw.constData());
-
-        switch ( rc ) {
-        case SSH_AUTH_AGAIN:
-            enableWritableNotifier();
-            return;
-
-        case SSH_AUTH_ERROR:
-            LIBSSHQT_DEBUG("Authentication error:" << errorCodeAndMessage());
-            setState(StateError);
-            return;
-
-        case SSH_AUTH_DENIED:
-            LIBSSHQT_DEBUG("Authentication denied");
-            LIBSSHQT_DEBUG("Supported authentication methods" <<
-                           supportedAuthMethods());
-            setState(StateAuthFailed);
-            return;
-
-        case SSH_AUTH_PARTIAL:
-            LIBSSHQT_DEBUG("Partial authentication");
-            LIBSSHQT_DEBUG("Supported authentication methods" <<
-                           supportedAuthMethods());
-            setState(StateAuthFailed);
-            return;
-
-        case SSH_AUTH_SUCCESS:
-            setState(StateOpened);
-            timer_.start();
-            return;
-
-        default:
-            LIBSSHQT_CRITICAL("Unknown result code" << rc <<
-                              "received from ssh_userauth_password()");
-            return;
-        }
+        handleAuthResponse(rc, "ssh_userauth_password", UseAuthPassword);
+        return;
     } break;
 
-    // Activate processState() function on all children so that they can
-    // process their events and read and write IO.
+    case StateAuthInteractive: {
+        //! @TODO
+        return;
+    }
+
     case StateOpened:
     {
+        // Activate processState() function on all children so that they can
+        // process their events and read and write IO.
         emit doProcessState();
         return;
     } break;
@@ -793,6 +808,62 @@ void LibsshQtClient::processState()
 
     Q_ASSERT_X(false, __func__, "Case was not handled properly");
 }
+
+void LibsshQtClient::enableDisableAuth(bool enabled, UseAuthFlag auth)
+{
+    if ( enabled ) {
+        use_auths_ |= auth;
+        if ( state_ == StateAuthChoose || state_ == StateAuthFailed ) {
+            setState(StateAuthContinue);
+            timer_.start();
+        }
+
+    } else {
+        use_auths_ &= ~auth;
+    }
+}
+
+void LibsshQtClient::handleAuthResponse(int         rc,
+                                        const char *func,
+                                        UseAuthFlag auth)
+{
+    switch ( rc ) {
+    case SSH_AUTH_AGAIN:
+        enableWritableNotifier();
+        return;
+
+    case SSH_AUTH_ERROR:
+        LIBSSHQT_DEBUG("Authentication error:" << auth <<
+                       errorCodeAndMessage());
+        setState(StateError);
+        return;
+
+    case SSH_AUTH_DENIED:
+        LIBSSHQT_DEBUG("Authentication denied:" << auth);
+        tryNextAuth();
+        return;
+
+    case SSH_AUTH_PARTIAL:
+        LIBSSHQT_DEBUG("Partial authentication:" << auth);
+        tryNextAuth();
+        return;
+
+    case SSH_AUTH_SUCCESS:
+        LIBSSHQT_DEBUG("Authentication success:" << auth);
+        succeeded_auth_ = auth;
+        setState(StateOpened);
+        timer_.start();
+        return;
+
+    default:
+        LIBSSHQT_CRITICAL("Unknown result code" << rc <<
+                          "received from" << func);
+        return;
+    }
+
+    Q_ASSERT_X(false, __func__, "Case was not handled properly");
+}
+
 
 
 

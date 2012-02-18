@@ -39,9 +39,12 @@ public:
         StateConnecting,
         StateIsKnown,
         StateUnknownHost,
-        StateChooseAuth,
-        StateAutoAuth,
-        StatePasswordAuth,
+        StateAuthChoose,
+        StateAuthContinue,
+        StateAuthNone,
+        StateAuthAutoPubkey,
+        StateAuthPassword,
+        StateAuthInteractive,
         StateAuthFailed,
         StateOpened,
         StateError
@@ -79,6 +82,16 @@ public:
     };
     Q_DECLARE_FLAGS(AuthMethods, AuthMehodFlag)
 
+    Q_FLAGS(UseAuthFlag)
+    enum UseAuthFlag
+    {
+        UseAuthEmpty                = 0,    //<! Auth method not chosen
+        UseAuthNone                 = 1<<0, //<! SSH None authentication method
+        UseAuthAutoPubKey           = 1<<1, //<! Keys from ~/.ssh and ssh-agent
+        UseAuthPassword             = 1<<2, //<! SSH Password auth method
+        UseAuthInteractive          = 1<<3  //<! SSH Interactive auth method
+    };
+    Q_DECLARE_FLAGS(UseAuths, UseAuthFlag)
 
     LibsshQtClient(QObject *parent = 0);
     ~LibsshQtClient();
@@ -116,8 +129,11 @@ public:
 
     // Authentication
     AuthMethods supportedAuthMethods();
+    void useNoneAuth(bool enabled);
     void useAutoKeyAuth(bool enabled);
     void usePasswordAuth(bool enabled, QString password);
+    void useInteractiveAuth(bool enabled);
+    UseAuths failedAuths();
 
     // Doing something
     LibsshQtProcess *runCommand(QString command);
@@ -151,8 +167,11 @@ signals:
 
 private:
     void setState(StateFlag state);
+    void tryNextAuth();
     void setUpNotifiers();
     void processState();
+    void enableDisableAuth(bool enabled, UseAuthFlag auth);
+    void handleAuthResponse(int rc, const char *func, UseAuthFlag auth);
 
 private slots:
     void handleSocketReadable(int socket);
@@ -176,14 +195,14 @@ private:
     QSocketNotifier *read_notifier_;
     QSocketNotifier *write_notifier_;
 
-    HostFlag    unknown_host_type_;
-    QString     unknwon_host_key_hex_;
+    HostFlag        unknown_host_type_;
+    QString         unknwon_host_key_hex_;
 
-    int         auth_attemp_;
-    bool        use_autokey_;
-    bool        use_password_;
+    UseAuths        use_auths_;
+    UseAuths        failed_auths_;
+    UseAuthFlag     succeeded_auth_;
 
-    QString     password_;
+    QString         password_;
 };
 
 
