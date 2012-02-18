@@ -1,10 +1,12 @@
 *.o
+moc_*
+ui_*
 Makefile
 *.pro.user
-moc_*
 *.kate-swp
 *.autosave
 
 libsshqt-runprocess
 libsshqt-processtofile
 libsshqt-filetoprocess
+libsshqt-runprocessgui
