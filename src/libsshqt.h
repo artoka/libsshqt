@@ -93,6 +93,7 @@ public:
     };
     Q_DECLARE_FLAGS(UseAuths, UseAuthFlag)
 
+
     LibsshQtClient(QObject *parent = 0);
     ~LibsshQtClient();
 
@@ -100,8 +101,10 @@ public:
     static const char *flagToString(const StateFlag     flag);
     static const char *flagToString(const HostFlag      flag);
     static const char *flagToString(const AuthMehodFlag flag);
+    static const char *flagToString(const UseAuthFlag   flag);
 
     static QString flagsToString(const AuthMethods flags);
+    static QString flagsToString(const UseAuths    flags);
 
 
     // Options
@@ -435,15 +438,27 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtClient::HostFlag flag)
     return dbg;
 }
 
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::AuthMehodFlag flag)
+{
+    dbg << LibsshQtClient::flagToString(flag);
+    return dbg;
+}
+
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::UseAuthFlag flag)
+{
+    dbg << LibsshQtClient::flagToString(flag);
+    return dbg;
+}
+
 inline QDebug operator<<(QDebug dbg, const LibsshQtClient::AuthMethods flags)
 {
     dbg << qPrintable(LibsshQtClient::flagsToString(flags));
     return dbg;
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtClient::AuthMehodFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::UseAuths flags)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << qPrintable(LibsshQtClient::flagsToString(flags));
     return dbg;
 }
 

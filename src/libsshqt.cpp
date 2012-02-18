@@ -132,6 +132,13 @@ const char *LibsshQtClient::flagToString(const AuthMehodFlag flag)
                     .valueToKey(flag);
 }
 
+const char *LibsshQtClient::flagToString(const UseAuthFlag flag)
+{
+    return staticMetaObject.enumerator(
+                staticMetaObject.indexOfEnumerator("UseAuthFlag"))
+                    .valueToKey(flag);
+}
+
 QString LibsshQtClient::flagsToString(const AuthMethods flags)
 {
     QStringList list;
@@ -165,6 +172,36 @@ QString LibsshQtClient::flagsToString(const AuthMethods flags)
     }
 
     return QString("AuthMethods(%1)").arg(list.join(", "));
+}
+
+QString LibsshQtClient::flagsToString(const UseAuths flags)
+{
+    QStringList list;
+
+    if ( flags == UseAuthEmpty ) {
+        list << flagToString(UseAuthEmpty);
+
+    } else {
+
+        if ( flags.testFlag(UseAuthNone)) {
+            list << flagToString(UseAuthNone);
+        }
+
+        if ( flags.testFlag(UseAuthAutoPubKey)) {
+            list << flagToString(UseAuthAutoPubKey);
+        }
+
+        if ( flags.testFlag(UseAuthPassword)) {
+            list << flagToString(UseAuthPassword);
+        }
+
+        if ( flags.testFlag(UseAuthInteractive)) {
+            list << flagToString(UseAuthInteractive);
+
+        }
+    }
+
+    return QString("UseAuths(%1)").arg(list.join(", "));
 }
 
 /*!
@@ -602,6 +639,9 @@ void LibsshQtClient::tryNextAuth()
         failed_auths_ |= UseAuthInteractive;
         break;
     }
+
+    LIBSSHQT_DEBUG("Enabled auths:" << use_auths_);
+    LIBSSHQT_DEBUG("Failed auths:" << failed_auths_);
 
     // Choose next state for LibsshQtClient
     if ( use_auths_ == UseAuthEmpty && failed_auths_ == UseAuthEmpty ) {
