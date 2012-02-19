@@ -44,7 +44,8 @@ public:
         StateAuthNone,
         StateAuthAutoPubkey,
         StateAuthPassword,
-        StateAuthInteractive,
+        StateAuthKbi,
+        StateAuthKbiQuestions,
         StateAuthFailed,
         StateOpened,
         StateError
@@ -78,7 +79,7 @@ public:
         AuthMethodPassword          = SSH_AUTH_METHOD_PASSWORD,
         AuthMethodPublicKey         = SSH_AUTH_METHOD_PUBLICKEY,
         AuthMethodHostBased         = SSH_AUTH_METHOD_HOSTBASED,
-        AuthMethodInteractive       = SSH_AUTH_METHOD_INTERACTIVE
+        AuthMethodKbi               = SSH_AUTH_METHOD_INTERACTIVE
     };
     Q_DECLARE_FLAGS(AuthMethods, AuthMehodFlag)
 
@@ -89,9 +90,17 @@ public:
         UseAuthNone                 = 1<<0, //<! SSH None authentication method
         UseAuthAutoPubKey           = 1<<1, //<! Keys from ~/.ssh and ssh-agent
         UseAuthPassword             = 1<<2, //<! SSH Password auth method
-        UseAuthInteractive          = 1<<3  //<! SSH Interactive auth method
+        UseAuthKbi                  = 1<<3  //<! SSH KBI auth method
     };
     Q_DECLARE_FLAGS(UseAuths, UseAuthFlag)
+
+    class KbiQuestion
+    {
+    public:
+        QString instruction;
+        QString question;
+        bool    showAnswer;
+    };
 
 
     LibsshQtClient(QObject *parent = 0);
@@ -135,7 +144,9 @@ public:
     void useNoneAuth(bool enabled);
     void useAutoKeyAuth(bool enabled);
     void usePasswordAuth(bool enabled, QString password);
-    void useInteractiveAuth(bool enabled);
+    void useKbiAuth(bool enabled);
+    QList<KbiQuestion> kbiQuestions();
+    void setKbiAnswers(QStringList answers);
     UseAuths failedAuths();
 
     // Doing something
@@ -160,6 +171,7 @@ signals:
     void unknownHost();
     void chooseAuth();
     void authFailed();
+    void kbiQuestionsAvailable();
     void opened();
     void closed();
     void error();
@@ -460,6 +472,15 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtClient::UseAuths flags)
 {
     dbg << qPrintable(LibsshQtClient::flagsToString(flags));
     return dbg;
+}
+
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::KbiQuestion &question)
+{
+    dbg.nospace() << "KbiQuestion( "
+                  << question.instruction << ", "
+                  << question.question << ", "
+                  << question.showAnswer << " )";
+    return dbg.space();
 }
 
 

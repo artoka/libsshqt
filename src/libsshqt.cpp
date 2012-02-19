@@ -166,8 +166,8 @@ QString LibsshQtClient::flagsToString(const AuthMethods flags)
 
         }
 
-        if ( flags.testFlag(AuthMethodInteractive)) {
-            list << flagToString(AuthMethodInteractive);
+        if ( flags.testFlag(AuthMethodKbi)) {
+            list << flagToString(AuthMethodKbi);
         }
     }
 
@@ -195,8 +195,8 @@ QString LibsshQtClient::flagsToString(const UseAuths flags)
             list << flagToString(UseAuthPassword);
         }
 
-        if ( flags.testFlag(UseAuthInteractive)) {
-            list << flagToString(UseAuthInteractive);
+        if ( flags.testFlag(UseAuthKbi)) {
+            list << flagToString(UseAuthKbi);
 
         }
     }
@@ -416,11 +416,73 @@ void LibsshQtClient::usePasswordAuth(bool enabled, QString password)
 }
 
 /*!
-    Enable or disable the use of Interactive SSH authentication.
+    Enable or disable the use of Keyboard Interactive SSH authentication.
 */
-void LibsshQtClient::useInteractiveAuth(bool enabled)
+void LibsshQtClient::useKbiAuth(bool enabled)
 {
-    enableDisableAuth(enabled, UseAuthInteractive);
+    enableDisableAuth(enabled, UseAuthKbi);
+}
+
+/*!
+    Get list of Keyboard Interactive questions sent by the server.
+*/
+QList<LibsshQtClient::KbiQuestion> LibsshQtClient::kbiQuestions()
+{
+    Q_ASSERT( state_ == StateAuthKbiQuestions );
+    if ( state_ == StateAuthKbiQuestions ) {
+
+        QList<KbiQuestion> questions;
+        QString instruction = ssh_userauth_kbdint_getinstruction(session_);
+
+        int len = ssh_userauth_kbdint_getnprompts(session_);
+        LIBSSHQT_DEBUG("Number of KBI questions:" << 1);
+
+        for ( int i = 0; i < len; i++) {
+
+            char echo = 0;
+            const char *prompt = 0;
+
+            prompt = ssh_userauth_kbdint_getprompt(session_, i, &echo);
+            Q_ASSERT( prompt );
+
+            KbiQuestion kbi_question;
+            kbi_question.instruction = instruction;
+            kbi_question.question    = QString(prompt);
+            kbi_question.showAnswer  = echo != 0;
+
+            LIBSSHQT_DEBUG("KBI Question:" << kbi_question);
+            questions << kbi_question;
+        }
+
+        return questions;
+
+    } else {
+        LIBSSHQT_CRITICAL("Cannot get KBI questions because state is" <<
+                          state_);
+        return QList<KbiQuestion>();
+    }
+}
+
+/*!
+    Set answers to Keyboard Interactive questions.
+*/
+void LibsshQtClient::setKbiAnswers(QStringList answers)
+{
+    Q_ASSERT( state_ == StateAuthKbiQuestions );
+    if ( state_ == StateAuthKbiQuestions ) {
+
+        int i = 0;
+        foreach ( QString answer, answers ) {
+            QByteArray utf8 = answer.toUtf8();
+            ssh_userauth_kbdint_setanswer(session_, i, utf8.constData());
+        }
+
+        setState(StateAuthKbi);
+        timer_.start();
+
+    } else {
+        LIBSSHQT_CRITICAL("Cannot set KBI answers because state is" << state_);
+    }
 }
 
 LibsshQtClient::UseAuths LibsshQtClient::failedAuths()
@@ -583,20 +645,21 @@ void LibsshQtClient::setState(StateFlag state)
     state_ = state;
 
     switch ( state_ ) {
-    case StateClosed:           emit closed();          break;
-    case StateClosing:                                  break;
-    case StateConnecting:                               break;
-    case StateIsKnown:                                  break;
-    case StateUnknownHost:      emit unknownHost();     break;
-    case StateAuthChoose:       emit chooseAuth();      break;
-    case StateAuthContinue:                             break;
-    case StateAuthNone:                                 break;
-    case StateAuthAutoPubkey:                           break;
-    case StateAuthPassword:                             break;
-    case StateAuthInteractive:                          break;
-    case StateAuthFailed:       emit authFailed();      break;
-    case StateOpened:           emit opened();          break;
-    case StateError:            emit error();           break;
+    case StateClosed:           emit closed();                  break;
+    case StateClosing:                                          break;
+    case StateConnecting:                                       break;
+    case StateIsKnown:                                          break;
+    case StateUnknownHost:      emit unknownHost();             break;
+    case StateAuthChoose:       emit chooseAuth();              break;
+    case StateAuthContinue:                                     break;
+    case StateAuthNone:                                         break;
+    case StateAuthAutoPubkey:                                   break;
+    case StateAuthPassword:                                     break;
+    case StateAuthKbi:                                          break;
+    case StateAuthKbiQuestions: emit kbiQuestionsAvailable();   break;
+    case StateAuthFailed:       emit authFailed();              break;
+    case StateOpened:           emit opened();                  break;
+    case StateError:            emit error();                   break;
     }
 }
 
@@ -618,6 +681,7 @@ void LibsshQtClient::tryNextAuth()
     case StateUnknownHost:
     case StateAuthChoose:
     case StateAuthContinue:
+    case StateAuthKbiQuestions:
     case StateAuthFailed:
     case StateOpened:
     case StateError:
@@ -635,8 +699,8 @@ void LibsshQtClient::tryNextAuth()
         failed_auths_ |= UseAuthPassword;
         break;
 
-    case StateAuthInteractive:
-        failed_auths_ |= UseAuthInteractive;
+    case StateAuthKbi:
+        failed_auths_ |= UseAuthKbi;
         break;
     }
 
@@ -665,9 +729,9 @@ void LibsshQtClient::tryNextAuth()
         setState(StateAuthPassword);
         timer_.start();
 
-    } else if ( use_auths_ & UseAuthInteractive ) {
-        use_auths_ &= ~UseAuthInteractive;
-        setState(StateAuthInteractive);
+    } else if ( use_auths_ & UseAuthKbi ) {
+        use_auths_ &= ~UseAuthKbi;
+        setState(StateAuthKbi);
         timer_.start();
     }
 }
@@ -739,6 +803,7 @@ void LibsshQtClient::processState()
     case StateClosing:
     case StateUnknownHost:
     case StateAuthChoose:
+    case StateAuthKbiQuestions:
     case StateAuthFailed:
     case StateError:
         return;
@@ -831,8 +896,9 @@ void LibsshQtClient::processState()
         return;
     } break;
 
-    case StateAuthInteractive: {
-        //! @TODO
+    case StateAuthKbi: {
+        int rc = ssh_userauth_kbdint(session_, 0, 0);
+        handleAuthResponse(rc, "ssh_userauth_kbdint", UseAuthKbi);
         return;
     }
 
@@ -886,6 +952,15 @@ void LibsshQtClient::handleAuthResponse(int         rc,
     case SSH_AUTH_PARTIAL:
         LIBSSHQT_DEBUG("Partial authentication:" << auth);
         tryNextAuth();
+        return;
+
+    case SSH_AUTH_INFO:
+        if ( auth == UseAuthKbi ) {
+            setState(StateAuthKbiQuestions);
+        } else {
+            LIBSSHQT_CRITICAL("Invalid authentication info requested for:" <<
+                              auth);
+        }
         return;
 
     case SSH_AUTH_SUCCESS:
