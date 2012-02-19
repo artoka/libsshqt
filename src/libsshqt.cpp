@@ -1310,6 +1310,11 @@ void LibsshQtProcess::setCommand(QString command)
     LIBSSHQT_DEBUG("Setting command to" << command);
 }
 
+QString LibsshQtProcess::command()
+{
+    return command_;
+}
+
 int LibsshQtProcess::exitCode() const
 {
     return exit_code_;

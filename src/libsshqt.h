@@ -337,6 +337,7 @@ public:
     static const char *flagToString(const OutputBehaviourFlag flag);
 
     void setCommand(QString command);
+    QString command();
     int exitCode() const;
 
     void setStdoutBehaviour(OutputBehaviourFlag behaviour, QString prefix = "");
