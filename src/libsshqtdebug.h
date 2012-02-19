@@ -17,13 +17,17 @@
 
 namespace LibsshQt
 {
-    inline QString debugPrefix(QObject *object)
+    inline QString hexAndName(QObject *object)
     {
         quint64 val    = reinterpret_cast<quint64>(object);
         QString hex    = QString("%1").arg(val, 0, 16);
         QString name   = object->metaObject()->className();
-        QString prefix = hex.toUpper() + "-" + name + ":";
-        return prefix;
+        return hex.toUpper() + "-" + name;
+    }
+
+    inline QString debugPrefix(QObject *object)
+    {
+        return hexAndName(object) + ":";
     }
 }
 
