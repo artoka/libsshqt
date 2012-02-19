@@ -6,23 +6,13 @@
 #include <QUrl>
 
 #include "libsshqt.h"
+#include "libsshqtdebug.h"
 
 
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // Misc
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-#define LIBSSHQT_DEBUG(_message_) \
-    if ( debug_output_ ) { \
-        qDebug() << qPrintable(debug_prefix_) << _message_; \
-    }
-
-#define LIBSSHQT_CRITICAL(_message_) \
-    qCritical() << qPrintable(debug_prefix_) << _message_;
-
-#define LIBSSHQT_FATAL(_message_) \
-    qFatal("%s Fatal error: %s", qPrintable(debug_prefix_), _message_);
 
 #define LIBSSHQT_SET_OPT(_opt_, _val_, _log_val_) \
     if ( state_ != StateClosed ) { \
@@ -37,16 +27,6 @@
         LIBSSHQT_CRITICAL("Failed to set option " <<  #_opt_ << \
                           "to" << _log_val_)\
     }
-
-static QString _getDebugPrefix(QObject *object)
-{
-    quint64 val    = reinterpret_cast<quint64>(object);
-    QString hex    = QString("%1").arg(val, 0, 16);
-    QString name   = object->metaObject()->className();
-    QString prefix = hex.toUpper() + "-" + name + ":";
-
-    return prefix;
-}
 
 
 
@@ -66,7 +46,7 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
     write_notifier_(0),
     unknown_host_type_(HostKnown)
 {
-    debug_prefix_ = _getDebugPrefix(this);
+    debug_prefix_ = LibsshQt::debugPrefix(this);
 
     if ( QProcessEnvironment::systemEnvironment().contains("LIBSSHQT_DEBUG")) {
         debug_output_ = true;
@@ -995,7 +975,7 @@ LibsshQtChannel::LibsshQtChannel(LibsshQtClient *parent) :
     buffer_size_(1024 * 16),
     write_size_(1024 * 16)
 {
-    debug_prefix_ = _getDebugPrefix(this);
+    debug_prefix_ = LibsshQt::debugPrefix(this);
     if ( client_->isDebugEnabled()) {
         debug_output_ = true;
     }
@@ -1287,7 +1267,7 @@ LibsshQtProcess::LibsshQtProcess(LibsshQtClient *parent) :
     exit_code_(-1),
     stderr_(new LibsshQtProcessStderr(this))
 {
-    debug_prefix_ = _getDebugPrefix(this);
+    debug_prefix_ = LibsshQt::debugPrefix(this);
     stderr_->err_buffer_ = &stderr_buffer_;
 
     LIBSSHQT_DEBUG("Constructor");
