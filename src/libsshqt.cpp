@@ -447,7 +447,7 @@ QList<LibsshQtClient::KbiQuestion> LibsshQtClient::kbiQuestions()
         QString instruction = ssh_userauth_kbdint_getinstruction(session_);
 
         int len = ssh_userauth_kbdint_getnprompts(session_);
-        LIBSSHQT_DEBUG("Number of KBI questions:" << 1);
+        LIBSSHQT_DEBUG("Number of KBI questions:" << len);
 
         for ( int i = 0; i < len; i++) {
 
@@ -466,6 +466,7 @@ QList<LibsshQtClient::KbiQuestion> LibsshQtClient::kbiQuestions()
             questions << kbi_question;
         }
 
+        Q_ASSERT( questions.count() > 0 );
         return questions;
 
     } else {
@@ -482,6 +483,7 @@ void LibsshQtClient::setKbiAnswers(QStringList answers)
 {
     Q_ASSERT( state_ == StateAuthKbiQuestions );
     if ( state_ == StateAuthKbiQuestions ) {
+        LIBSSHQT_CRITICAL("Setting KBI answers");
 
         int i = 0;
         foreach ( QString answer, answers ) {
@@ -942,7 +944,21 @@ void LibsshQtClient::processState()
 
     case StateAuthKbi: {
         int rc = ssh_userauth_kbdint(session_, 0, 0);
-        handleAuthResponse(rc, "ssh_userauth_kbdint", UseAuthKbi);
+        if ( rc == SSH_AUTH_INFO ) {
+
+             // Sometimes SSH_AUTH_INFO is returned even though there are no
+             // KBI questions available, in that case, continue as if
+             // SSH_AUTH_AGAIN was returned.
+             if ( ssh_userauth_kbdint_getnprompts(session_) <= 0 ) {
+                 enableWritableNotifier();
+
+             } else {
+                 setState(StateAuthKbiQuestions);
+             }
+
+        } else {
+            handleAuthResponse(rc, "ssh_userauth_kbdint", UseAuthKbi);
+        }
         return;
     }
 
@@ -982,15 +998,6 @@ void LibsshQtClient::handleAuthResponse(int         rc,
     case SSH_AUTH_PARTIAL:
         LIBSSHQT_DEBUG("Partial authentication:" << auth);
         tryNextAuth();
-        return;
-
-    case SSH_AUTH_INFO:
-        if ( auth == UseAuthKbi ) {
-            setState(StateAuthKbiQuestions);
-        } else {
-            LIBSSHQT_CRITICAL("Invalid authentication info requested for:" <<
-                              auth);
-        }
         return;
 
     case SSH_AUTH_SUCCESS:

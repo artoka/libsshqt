@@ -173,6 +173,8 @@ void LibsshQtGui::handleNeedKbiAnswers()
 
     kbi_pos_       = 0;
     kbi_questions_ = client_->kbiQuestions();
+
+    Q_ASSERT( kbi_questions_.count() > 0 );
     showNextKbiQuestion();
 }
 
