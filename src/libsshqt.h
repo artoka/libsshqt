@@ -31,8 +31,8 @@ class LibsshQtClient : public QObject
 
 public:
 
-    Q_FLAGS(StateFlag)
-    enum StateFlag
+    Q_ENUMS(State)
+    enum State
     {
         StateClosed,
         StateClosing,
@@ -51,8 +51,8 @@ public:
         StateError
     };
 
-    Q_FLAGS(LogFlag)
-    enum LogFlag
+    Q_ENUMS(LogVerbosity)
+    enum LogVerbosity
     {
         LogDisable                  = SSH_LOG_NOLOG,
         LogRare                     = SSH_LOG_RARE,
@@ -61,8 +61,8 @@ public:
         LogFunction                 = SSH_LOG_FUNCTIONS
     };
 
-    Q_FLAGS(HostFlag)
-    enum HostFlag
+    Q_ENUMS(HostState)
+    enum HostState
     {
         HostKnown                   = SSH_SERVER_KNOWN_OK,
         HostUnknown                 = SSH_SERVER_NOT_KNOWN,
@@ -106,11 +106,11 @@ public:
     LibsshQtClient(QObject *parent = 0);
     ~LibsshQtClient();
 
-    static const char *flagToString(const LogFlag       flag);
-    static const char *flagToString(const StateFlag     flag);
-    static const char *flagToString(const HostFlag      flag);
-    static const char *flagToString(const AuthMehodFlag flag);
-    static const char *flagToString(const UseAuthFlag   flag);
+    static const char *enumToString(const LogVerbosity  value);
+    static const char *enumToString(const State         value);
+    static const char *enumToString(const HostState     value);
+    static const char *enumToString(const AuthMehodFlag value);
+    static const char *enumToString(const UseAuthFlag   value);
 
     static QString flagsToString(const AuthMethods flags);
     static QString flagsToString(const UseAuths    flags);
@@ -121,7 +121,7 @@ public:
     void setUsername(QString username);
     void setHostname(QString hostname);
     void setPort(quint16 port);
-    void setVerbosity(LogFlag loglevel);
+    void setVerbosity(LogVerbosity loglevel);
     void setUrl(QUrl &url);
 
     bool isDebugEnabled() const;
@@ -153,7 +153,7 @@ public:
     LibsshQtProcess *runCommand(QString command);
 
     // Functions for handling unknown hosts
-    HostFlag unknownHostType();
+    HostState unknownHostType();
     QString unknownHostMessage();
     QString hostPublicKeyHash();
     bool markCurrentHostKnown();
@@ -163,7 +163,7 @@ public:
     QString errorMessage() const;
     int errorCode() const;
 
-    StateFlag state() const;
+    State state() const;
     ssh_session sshSession();
     void enableWritableNotifier();
 
@@ -181,7 +181,7 @@ signals:
     void doCleanup();       //!< All children must release libssh resources
 
 private:
-    void setState(StateFlag state);
+    void setState(State state);
     void tryNextAuth();
     void setUpNotifiers();
     void processState();
@@ -199,7 +199,7 @@ private:
 
     QTimer      timer_;
     ssh_session session_;
-    StateFlag   state_;
+    State       state_;
     bool        process_state_running_;
     bool        enable_writable_nofifier_;
 
@@ -210,7 +210,7 @@ private:
     QSocketNotifier *read_notifier_;
     QSocketNotifier *write_notifier_;
 
-    HostFlag        unknown_host_type_;
+    HostState       unknown_host_type_;
     QString         unknwon_host_key_hex_;
 
     UseAuths        use_auths_;
@@ -244,7 +244,7 @@ public:
     ~LibsshQtChannel();
     LibsshQtClient *client();
 
-    static const char *flagToString(const EofState flag);
+    static const char *enumToString(const EofState flag);
 
     void setWriteSize(int write_size);
     void setReadBufferSize(int buffer_size);
@@ -310,8 +310,8 @@ class LibsshQtProcess : public LibsshQtChannel
     friend class LibsshQtProcessStderr;
 
 public:
-    Q_FLAGS(StateFlag)
-    enum StateFlag {
+    Q_ENUMS(State)
+    enum State {
         StateClosed,
         StateClosing,
         StateWaitClient,
@@ -322,8 +322,8 @@ public:
         StateClientError
     };
 
-    Q_FLAGS(OutputBehaviourFlag)
-    enum OutputBehaviourFlag
+    Q_ENUMS(OutputBehaviour)
+    enum OutputBehaviour
     {
         OutputManual,   //!< No automatic handling, read output manually
         OutputToQDebug, //!< All output is sent to QDebug()
@@ -333,21 +333,21 @@ public:
     LibsshQtProcess(LibsshQtClient *parent);
     ~LibsshQtProcess();
 
-    static const char *flagToString(const StateFlag flag);
-    static const char *flagToString(const OutputBehaviourFlag flag);
+    static const char *enumToString(const State value);
+    static const char *enumToString(const OutputBehaviour value);
 
     void setCommand(QString command);
     QString command();
     int exitCode() const;
 
-    void setStdoutBehaviour(OutputBehaviourFlag behaviour, QString prefix = "");
-    void setStderrBehaviour(OutputBehaviourFlag behaviour, QString prefix = "");
+    void setStdoutBehaviour(OutputBehaviour behaviour, QString prefix = "");
+    void setStderrBehaviour(OutputBehaviour behaviour, QString prefix = "");
     LibsshQtProcessStderr *stderr();
 
     void openChannel();
     void closeChannel();
 
-    StateFlag state() const;
+    State state() const;
 
 signals:
     void opened();
@@ -356,7 +356,7 @@ signals:
     void finished(int exit_code);
 
 protected:
-    void setState(StateFlag state);
+    void setState(State state);
     void processState();
     void checkIo();
     void queueCheckIo();
@@ -365,23 +365,23 @@ private slots:
     void handleClientError();
     void handleStdoutOutput();
     void handleStderrOutput();
-    void handleOutput(OutputBehaviourFlag &behaviour,
+    void handleOutput(OutputBehaviour &behaviour,
                       QString &prefix, QString &line);
 
 private:
     QTimer      timer_;
-    StateFlag   state_;
+    State       state_;
     QString     command_;
     int         exit_code_;
 
-    QByteArray         stderr_buffer_;
-    LibsshQtProcessStderr *stderr_;
+    QByteArray              stderr_buffer_;
+    LibsshQtProcessStderr  *stderr_;
 
-    OutputBehaviourFlag stdout_behaviour_;
-    QString             stdout_output_prefix_;
+    OutputBehaviour         stdout_behaviour_;
+    QString                 stdout_output_prefix_;
 
-    OutputBehaviourFlag stderr_behaviour_;
-    QString             stderr_output_prefix_;
+    OutputBehaviour         stderr_behaviour_;
+    QString                 stderr_output_prefix_;
 };
 
 
@@ -422,44 +422,44 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtClient *client)
 {
     if ( client->state() == LibsshQtClient::StateError ) {
         dbg.nospace() << "LibsshQtClient( "
-                      << LibsshQtClient::flagToString(client->state()) << ", "
+                      << LibsshQtClient::enumToString(client->state()) << ", "
                       << client->errorCode() << ", "
                       << client->errorMessage() << " )";
     } else {
         dbg.nospace() << "LibsshQtClient( "
-                      << LibsshQtClient::flagToString(client->state())
+                      << LibsshQtClient::enumToString(client->state())
                       << " )";
     }
     return dbg.space();
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtClient::StateFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::State value)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << LibsshQtClient::enumToString(value);
     return dbg;
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtClient::LogFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::LogVerbosity value)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << LibsshQtClient::enumToString(value);
     return dbg;
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtClient::HostFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtClient::HostState value)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << LibsshQtClient::enumToString(value);
     return dbg;
 }
 
 inline QDebug operator<<(QDebug dbg, const LibsshQtClient::AuthMehodFlag flag)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << LibsshQtClient::enumToString(flag);
     return dbg;
 }
 
 inline QDebug operator<<(QDebug dbg, const LibsshQtClient::UseAuthFlag flag)
 {
-    dbg << LibsshQtClient::flagToString(flag);
+    dbg << LibsshQtClient::enumToString(flag);
     return dbg;
 }
 
@@ -487,7 +487,7 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtClient::KbiQuestion &question
 
 inline QDebug operator<<(QDebug dbg, const LibsshQtChannel::EofState flag)
 {
-    dbg << LibsshQtChannel::flagToString(flag);
+    dbg << LibsshQtChannel::enumToString(flag);
     return dbg;
 }
 
@@ -496,26 +496,26 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtProcess *process)
 {
     if ( process->state() == LibsshQtProcess::StateError ) {
         dbg.nospace() << "LibsshQtProcess( "
-                      << LibsshQtProcess::flagToString(process->state()) << ", "
+                      << LibsshQtProcess::enumToString(process->state()) << ", "
                       << process->errorCode() << ", "
                       << process->errorMessage() << " )";
     } else {
         dbg.nospace() << "LibsshQtProcess( "
-                      << LibsshQtProcess::flagToString(process->state())
+                      << LibsshQtProcess::enumToString(process->state())
                       << " )";
     }
     return dbg.space();
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtProcess::StateFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtProcess::State value)
 {
-    dbg << LibsshQtProcess::flagToString(flag);
+    dbg << LibsshQtProcess::enumToString(value);
     return dbg;
 }
 
-inline QDebug operator<<(QDebug dbg, const LibsshQtProcess::OutputBehaviourFlag flag)
+inline QDebug operator<<(QDebug dbg, const LibsshQtProcess::OutputBehaviour value)
 {
-    dbg << LibsshQtProcess::flagToString(flag);
+    dbg << LibsshQtProcess::enumToString(value);
     return dbg;
 }
 

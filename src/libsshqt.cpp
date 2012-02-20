@@ -84,39 +84,39 @@ LibsshQtClient::~LibsshQtClient()
     }
 }
 
-const char *LibsshQtClient::flagToString(const LogFlag flag)
+const char *LibsshQtClient::enumToString(const LogVerbosity value)
 {
     return staticMetaObject.enumerator(
-                staticMetaObject.indexOfEnumerator("LogFlag"))
-                    .valueToKey(flag);
+                staticMetaObject.indexOfEnumerator("LogVerbosity"))
+                    .valueToKey(value);
 }
 
-const char *LibsshQtClient::flagToString(const StateFlag flag)
+const char *LibsshQtClient::enumToString(const State value)
 {
     return staticMetaObject.enumerator(
-                staticMetaObject.indexOfEnumerator("StateFlag"))
-                    .valueToKey(flag);
+                staticMetaObject.indexOfEnumerator("State"))
+                    .valueToKey(value);
 }
 
-const char *LibsshQtClient::flagToString(const HostFlag flag)
+const char *LibsshQtClient::enumToString(const HostState value)
 {
     return staticMetaObject.enumerator(
-                staticMetaObject.indexOfEnumerator("HostFlag"))
-                    .valueToKey(flag);
+                staticMetaObject.indexOfEnumerator("HostState"))
+                    .valueToKey(value);
 }
 
-const char *LibsshQtClient::flagToString(const AuthMehodFlag flag)
+const char *LibsshQtClient::enumToString(const AuthMehodFlag value)
 {
     return staticMetaObject.enumerator(
                 staticMetaObject.indexOfEnumerator("AuthMehodFlag"))
-                    .valueToKey(flag);
+                    .valueToKey(value);
 }
 
-const char *LibsshQtClient::flagToString(const UseAuthFlag flag)
+const char *LibsshQtClient::enumToString(const UseAuthFlag value)
 {
     return staticMetaObject.enumerator(
                 staticMetaObject.indexOfEnumerator("UseAuthFlag"))
-                    .valueToKey(flag);
+                    .valueToKey(value);
 }
 
 QString LibsshQtClient::flagsToString(const AuthMethods flags)
@@ -125,29 +125,29 @@ QString LibsshQtClient::flagsToString(const AuthMethods flags)
 
     int val = flags;
     if ( val == AuthMethodUnknown ) {
-        list << flagToString(AuthMethodUnknown);
+        list << enumToString(AuthMethodUnknown);
 
     } else {
 
         if ( flags.testFlag(AuthMethodNone)) {
-            list << flagToString(AuthMethodNone);
+            list << enumToString(AuthMethodNone);
         }
 
         if ( flags.testFlag(AuthMethodPassword)) {
-            list << flagToString(AuthMethodPassword);
+            list << enumToString(AuthMethodPassword);
         }
 
         if ( flags.testFlag(AuthMethodPublicKey)) {
-            list << flagToString(AuthMethodPublicKey);
+            list << enumToString(AuthMethodPublicKey);
         }
 
         if ( flags.testFlag(AuthMethodHostBased)) {
-            list << flagToString(AuthMethodHostBased);
+            list << enumToString(AuthMethodHostBased);
 
         }
 
         if ( flags.testFlag(AuthMethodKbi)) {
-            list << flagToString(AuthMethodKbi);
+            list << enumToString(AuthMethodKbi);
         }
     }
 
@@ -159,24 +159,24 @@ QString LibsshQtClient::flagsToString(const UseAuths flags)
     QStringList list;
 
     if ( flags == UseAuthEmpty ) {
-        list << flagToString(UseAuthEmpty);
+        list << enumToString(UseAuthEmpty);
 
     } else {
 
         if ( flags.testFlag(UseAuthNone)) {
-            list << flagToString(UseAuthNone);
+            list << enumToString(UseAuthNone);
         }
 
         if ( flags.testFlag(UseAuthAutoPubKey)) {
-            list << flagToString(UseAuthAutoPubKey);
+            list << enumToString(UseAuthAutoPubKey);
         }
 
         if ( flags.testFlag(UseAuthPassword)) {
-            list << flagToString(UseAuthPassword);
+            list << enumToString(UseAuthPassword);
         }
 
         if ( flags.testFlag(UseAuthKbi)) {
-            list << flagToString(UseAuthKbi);
+            list << enumToString(UseAuthKbi);
 
         }
     }
@@ -226,7 +226,7 @@ void LibsshQtClient::setPort(quint16 port)
 /*!
     Set libssh logging level.
 */
-void LibsshQtClient::setVerbosity(LogFlag loglevel)
+void LibsshQtClient::setVerbosity(LogVerbosity loglevel)
 {
     int tmp = loglevel;
     LIBSSHQT_SET_OPT(SSH_OPTIONS_LOG_VERBOSITY, &tmp, loglevel);
@@ -481,7 +481,7 @@ LibsshQtProcess *LibsshQtClient::runCommand(QString command)
     return process;
 }
 
-LibsshQtClient::HostFlag LibsshQtClient::unknownHostType()
+LibsshQtClient::HostState LibsshQtClient::unknownHostType()
 {
     return unknown_host_type_;
 }
@@ -555,6 +555,9 @@ bool LibsshQtClient::markCurrentHostKnown()
 
     switch ( rc ) {
     case SSH_OK:
+        LIBSSHQT_DEBUG("Added current host to known host list");
+        setState(StateIsKnown);
+        timer_.start();
         return true;
 
     case SSH_ERROR:
@@ -592,7 +595,7 @@ int LibsshQtClient::errorCode() const
     return ssh_get_error_code(session_);
 }
 
-LibsshQtClient::StateFlag LibsshQtClient::state() const
+LibsshQtClient::State LibsshQtClient::state() const
 {
     return state_;
 }
@@ -614,7 +617,7 @@ void LibsshQtClient::enableWritableNotifier()
 /*!
     Change session state and send appropriate signals.
 */
-void LibsshQtClient::setState(StateFlag state)
+void LibsshQtClient::setState(State state)
 {
     if ( state_ == state ) {
         LIBSSHQT_DEBUG("State is already" << state);
@@ -831,7 +834,7 @@ void LibsshQtClient::processState()
         case SSH_SERVER_KNOWN_CHANGED:
         case SSH_SERVER_FOUND_OTHER:
         case SSH_SERVER_FILE_NOT_FOUND:
-            unknown_host_type_ = static_cast< HostFlag >( known );
+            unknown_host_type_ = static_cast< HostState >( known );
             LIBSSHQT_DEBUG("Setting unknown host state to" <<
                            unknown_host_type_);
             setState(StateUnknownHost);
@@ -995,7 +998,7 @@ LibsshQtClient *LibsshQtChannel::client()
     return client_;
 }
 
-const char *LibsshQtChannel::flagToString(const EofState flag)
+const char *LibsshQtChannel::enumToString(const EofState flag)
 {
     return staticMetaObject.enumerator(
                 staticMetaObject.indexOfEnumerator("EofState"))
@@ -1290,18 +1293,18 @@ LibsshQtProcess::~LibsshQtProcess()
     closeChannel();
 }
 
-const char *LibsshQtProcess::flagToString(const StateFlag flag)
+const char *LibsshQtProcess::enumToString(const State value)
 {
     return staticMetaObject.enumerator(
-                staticMetaObject.indexOfEnumerator("StateFlag"))
-                    .valueToKey(flag);
+                staticMetaObject.indexOfEnumerator("State"))
+                    .valueToKey(value);
 }
 
-const char *LibsshQtProcess::flagToString(const OutputBehaviourFlag flag)
+const char *LibsshQtProcess::enumToString(const OutputBehaviour value)
 {
     return staticMetaObject.enumerator(
-                staticMetaObject.indexOfEnumerator("OutputBehaviourFlag"))
-                    .valueToKey(flag);
+                staticMetaObject.indexOfEnumerator("OutputBehaviour"))
+                    .valueToKey(value);
 }
 
 void LibsshQtProcess::setCommand(QString command)
@@ -1320,8 +1323,8 @@ int LibsshQtProcess::exitCode() const
     return exit_code_;
 }
 
-void LibsshQtProcess::setStdoutBehaviour(OutputBehaviourFlag behaviour,
-                                     QString             prefix)
+void LibsshQtProcess::setStdoutBehaviour(OutputBehaviour behaviour,
+                                         QString         prefix)
 {
     LIBSSHQT_DEBUG("Setting stdout behaviour to" << behaviour);
 
@@ -1340,8 +1343,8 @@ void LibsshQtProcess::setStdoutBehaviour(OutputBehaviourFlag behaviour,
     }
 }
 
-void LibsshQtProcess::setStderrBehaviour(OutputBehaviourFlag behaviour,
-                                     QString             prefix)
+void LibsshQtProcess::setStderrBehaviour(OutputBehaviour behaviour,
+                                         QString         prefix)
 {
     LIBSSHQT_DEBUG("Setting stderr behaviour to" << behaviour);
 
@@ -1391,12 +1394,12 @@ void LibsshQtProcess::closeChannel()
     }
 }
 
-LibsshQtProcess::StateFlag LibsshQtProcess::state() const
+LibsshQtProcess::State LibsshQtProcess::state() const
 {
     return state_;
 }
 
-void LibsshQtProcess::setState(StateFlag state)
+void LibsshQtProcess::setState(State state)
 {
     if ( state_ == state ) {
         LIBSSHQT_DEBUG("State is already" << state);
@@ -1594,7 +1597,7 @@ void LibsshQtProcess::handleStderrOutput()
     }
 }
 
-void LibsshQtProcess::handleOutput(OutputBehaviourFlag &behaviour,
+void LibsshQtProcess::handleOutput(OutputBehaviour &behaviour,
                                    QString             &prefix,
                                    QString             &line)
 {
