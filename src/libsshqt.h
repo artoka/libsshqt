@@ -44,6 +44,7 @@ public:
         StateAuthNone,
         StateAuthAutoPubkey,
         StateAuthPassword,
+        StateAuthNeedPassword,
         StateAuthKbi,
         StateAuthKbiQuestions,
         StateAuthFailed,
@@ -140,13 +141,19 @@ public slots:
 public:
 
     // Authentication
-    AuthMethods supportedAuthMethods();
+    void useAuth(UseAuths auths, bool enabled);
+    void useAuthDefaults();
     void useNoneAuth(bool enabled);
     void useAutoKeyAuth(bool enabled);
-    void usePasswordAuth(bool enabled, QString password);
+    void usePasswordAuth(bool enabled);
     void useKbiAuth(bool enabled);
+
+    void setPassword(QString password);
     QList<KbiQuestion> kbiQuestions();
     void setKbiAnswers(QStringList answers);
+
+    AuthMethods supportedAuthMethods();
+    UseAuths enabledAuths();
     UseAuths failedAuths();
 
     // Doing something
@@ -171,7 +178,8 @@ signals:
     void unknownHost();
     void chooseAuth();
     void authFailed();
-    void kbiQuestionsAvailable();
+    void needPassword();    //!< Use setPassword() to set password
+    void needKbiAnswers();  //!< Use setKbiAnswers() set answers
     void opened();
     void closed();
     void error();
@@ -185,7 +193,6 @@ private:
     void tryNextAuth();
     void setUpNotifiers();
     void processState();
-    void enableDisableAuth(bool enabled, UseAuthFlag auth);
     void handleAuthResponse(int rc, const char *func, UseAuthFlag auth);
 
 private slots:
@@ -194,18 +201,18 @@ private slots:
     void processStateGuard();
 
 private:
-    QString     debug_prefix_;
-    bool        debug_output_;
+    QString         debug_prefix_;
+    bool            debug_output_;
 
-    QTimer      timer_;
-    ssh_session session_;
-    State       state_;
-    bool        process_state_running_;
-    bool        enable_writable_nofifier_;
+    QTimer          timer_;
+    ssh_session     session_;
+    State           state_;
+    bool            process_state_running_;
+    bool            enable_writable_nofifier_;
 
-    quint16     port_;
-    QString     hostname_;
-    QString     username_;
+    quint16         port_;
+    QString         hostname_;
+    QString         username_;
 
     QSocketNotifier *read_notifier_;
     QSocketNotifier *write_notifier_;
@@ -217,6 +224,7 @@ private:
     UseAuths        failed_auths_;
     UseAuthFlag     succeeded_auth_;
 
+    bool            password_set_;
     QString         password_;
 };
 

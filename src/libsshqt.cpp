@@ -44,7 +44,8 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
     port_(22),
     read_notifier_(0),
     write_notifier_(0),
-    unknown_host_type_(HostKnown)
+    unknown_host_type_(HostKnown),
+    password_set_(false)
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
 
@@ -294,14 +295,6 @@ bool LibsshQtClient::isOpen()
 }
 
 /*!
-    Get supported authentication methods.
-*/
-LibsshQtClient::AuthMethods LibsshQtClient::supportedAuthMethods()
-{
-    return AuthMethods(ssh_userauth_list(session_, 0));
-}
-
-/*!
     Open connection to the host.
 */
 void LibsshQtClient::connectToHost()
@@ -369,11 +362,37 @@ void LibsshQtClient::disconnectFromHost()
 }
 
 /*!
+    Enable or disable one or more authentications.
+*/
+void LibsshQtClient::useAuth(UseAuths auths, bool enabled)
+{
+    if ( enabled ) {
+        use_auths_ |= auths;
+        if ( state_ == StateAuthChoose || state_ == StateAuthFailed ) {
+            setState(StateAuthContinue);
+            timer_.start();
+        }
+
+    } else {
+        use_auths_ &= ~auths;
+    }
+}
+
+/*!
+    This enables all authentications you would normally like to use.
+*/
+void LibsshQtClient::useAuthDefaults()
+{
+    UseAuths a(UseAuthNone | UseAuthAutoPubKey | UseAuthPassword | UseAuthKbi);
+    useAuth(a, true);
+}
+
+/*!
     Enable or disable the use of 'None' SSH authentication.
 */
 void LibsshQtClient::useNoneAuth(bool enabled)
 {
-    enableDisableAuth(enabled, UseAuthNone);
+    useAuth(UseAuthNone, enabled);
 }
 
 /*!
@@ -383,16 +402,15 @@ void LibsshQtClient::useNoneAuth(bool enabled)
 */
 void LibsshQtClient::useAutoKeyAuth(bool enabled)
 {
-    enableDisableAuth(enabled, UseAuthAutoPubKey);
+    useAuth(UseAuthAutoPubKey, enabled);
 }
 
 /*!
     Enable or disable the use of password based SSH authentication.
 */
-void LibsshQtClient::usePasswordAuth(bool enabled, QString password)
+void LibsshQtClient::usePasswordAuth(bool enabled)
 {
-    enableDisableAuth(enabled, UseAuthPassword);
-    password_ = password;
+    useAuth(UseAuthPassword, enabled);
 }
 
 /*!
@@ -400,7 +418,21 @@ void LibsshQtClient::usePasswordAuth(bool enabled, QString password)
 */
 void LibsshQtClient::useKbiAuth(bool enabled)
 {
-    enableDisableAuth(enabled, UseAuthKbi);
+    useAuth(UseAuthKbi, enabled);
+}
+
+/*!
+    Set password for use in password authentication.
+*/
+void LibsshQtClient::setPassword(QString password)
+{
+    password_set_ = true;
+    password_ = password;
+
+    if ( state_ == StateAuthNeedPassword ) {
+        setState(StateAuthPassword);
+        timer_.start();
+    }
 }
 
 /*!
@@ -465,6 +497,25 @@ void LibsshQtClient::setKbiAnswers(QStringList answers)
     }
 }
 
+/*!
+    Get supported authentication methods.
+*/
+LibsshQtClient::AuthMethods LibsshQtClient::supportedAuthMethods()
+{
+    return AuthMethods(ssh_userauth_list(session_, 0));
+}
+
+/*!
+    Get all enabled authentication methods.
+*/
+LibsshQtClient::UseAuths LibsshQtClient::enabledAuths()
+{
+    return use_auths_;
+}
+
+/*!
+    Get list of authention methods that have been attempted unsuccesfully.
+*/
 LibsshQtClient::UseAuths LibsshQtClient::failedAuths()
 {
     return failed_auths_;
@@ -633,8 +684,9 @@ void LibsshQtClient::setState(State state)
     case StateAuthNone:                                         break;
     case StateAuthAutoPubkey:                                   break;
     case StateAuthPassword:                                     break;
+    case StateAuthNeedPassword: emit needPassword();            break;
     case StateAuthKbi:                                          break;
-    case StateAuthKbiQuestions: emit kbiQuestionsAvailable();   break;
+    case StateAuthKbiQuestions: emit needKbiAnswers();          break;
     case StateAuthFailed:       emit authFailed();              break;
     case StateOpened:           emit opened();                  break;
     case StateError:            emit error();                   break;
@@ -659,6 +711,7 @@ void LibsshQtClient::tryNextAuth()
     case StateUnknownHost:
     case StateAuthChoose:
     case StateAuthContinue:
+    case StateAuthNeedPassword:
     case StateAuthKbiQuestions:
     case StateAuthFailed:
     case StateOpened:
@@ -781,6 +834,7 @@ void LibsshQtClient::processState()
     case StateClosing:
     case StateUnknownHost:
     case StateAuthChoose:
+    case StateAuthNeedPassword:
     case StateAuthKbiQuestions:
     case StateAuthFailed:
     case StateError:
@@ -868,10 +922,22 @@ void LibsshQtClient::processState()
 
     case StateAuthPassword:
     {
-        QByteArray utf8pw = password_.toUtf8();
-        int rc = ssh_userauth_password(session_, 0, utf8pw.constData());
-        handleAuthResponse(rc, "ssh_userauth_password", UseAuthPassword);
-        return;
+        if ( ! password_set_ ) {
+            setState(StateAuthNeedPassword);
+            return;
+
+        } else {
+            QByteArray utf8pw = password_.toUtf8();
+            int rc = ssh_userauth_password(session_, 0, utf8pw.constData());
+
+            if ( rc != SSH_AUTH_AGAIN ) {
+                password_set_ = false;
+                password_.clear();
+            }
+
+            handleAuthResponse(rc, "ssh_userauth_password", UseAuthPassword);
+            return;
+        }
     } break;
 
     case StateAuthKbi: {
@@ -891,20 +957,6 @@ void LibsshQtClient::processState()
     } // End switch
 
     Q_ASSERT_X(false, __func__, "Case was not handled properly");
-}
-
-void LibsshQtClient::enableDisableAuth(bool enabled, UseAuthFlag auth)
-{
-    if ( enabled ) {
-        use_auths_ |= auth;
-        if ( state_ == StateAuthChoose || state_ == StateAuthFailed ) {
-            setState(StateAuthContinue);
-            timer_.start();
-        }
-
-    } else {
-        use_auths_ &= ~auth;
-    }
 }
 
 void LibsshQtClient::handleAuthResponse(int         rc,
