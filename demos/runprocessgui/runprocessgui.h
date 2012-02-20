@@ -18,6 +18,8 @@ public:
     explicit RunProcessGui(QWidget *parent = 0);
     ~RunProcessGui();
 
+    void readSettings();
+    void saveSettings();
 
 private slots:
     void on_run_button_clicked();

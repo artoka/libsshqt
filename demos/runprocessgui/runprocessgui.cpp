@@ -19,31 +19,60 @@ RunProcessGui::RunProcessGui(QWidget *parent) :
     qApp->setOrganizationName("libsshqt");
     qApp->setApplicationName("runprocessqui");
 
-    QSettings settings;
-    ui->username_edit->setText(settings.value("username").toString());
-    ui->hostname_edit->setText(settings.value("hostname").toString());
-    ui->port_edit->setText(settings.value("port").toString());
-    ui->command_edit->setText(settings.value("command").toString());
+    readSettings();
 }
 
 RunProcessGui::~RunProcessGui()
 {
+    saveSettings();
     delete ui;
 }
 
-void RunProcessGui::on_run_button_clicked()
+void RunProcessGui::readSettings()
 {
     QSettings settings;
+
+    ui->username_edit->setText(settings.value("username").toString());
+    ui->hostname_edit->setText(settings.value("hostname").toString());
+    ui->port_edit->setText(settings.value("port").toString());
+    ui->command_edit->setText(settings.value("command").toString());
+
+    ui->auth_none->setChecked(settings.value("auth_none").toBool());
+    ui->auth_pubkey->setChecked(settings.value("auth_pubkey").toBool());
+    ui->auth_password->setChecked(settings.value("auth_password").toBool());
+    ui->auth_kbi->setChecked(settings.value("auth_kbi").toBool());
+}
+
+void RunProcessGui::saveSettings()
+{
+    QSettings settings;
+
     settings.setValue("username", ui->username_edit->text());
     settings.setValue("hostname", ui->hostname_edit->text());
     settings.setValue("port",     ui->port_edit->text());
     settings.setValue("command",  ui->command_edit->text());
+
+    settings.setValue("auth_none",     ui->auth_none->isChecked());
+    settings.setValue("auth_pubkey",   ui->auth_pubkey->isChecked());
+    settings.setValue("auth_password", ui->auth_password->isChecked());
+    settings.setValue("auth_kbi",      ui->auth_kbi->isChecked());
+}
+
+void RunProcessGui::on_run_button_clicked()
+{
+    saveSettings();
 
     if ( process ) {
         process->closeChannel();
         process->deleteLater();
         process = 0;
     }
+
+    //client->useAuthDefaults();
+    client->useNoneAuth(ui->auth_none->isChecked());
+    client->useAutoKeyAuth(ui->auth_pubkey->isChecked());
+    client->usePasswordAuth(ui->auth_password->isChecked());
+    client->useKbiAuth(ui->auth_kbi->isChecked());
 
     client->setUsername(ui->username_edit->text());
     client->setHostname(ui->hostname_edit->text());
