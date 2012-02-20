@@ -42,12 +42,13 @@ private slots:
     void handleUnknownHost();
     void handleNeedPassword();
     void handleNeedKbiAnswers();
+    void showNextKbiQuestion();
     void handleAuthFailed();
 
 private:
     void setState(State state);
     void showHostPage(QString message, QString hostname, QString key);
-    void showQuestionPage(QString question);
+    void showQuestionPage(QString question, bool show_answer = false);
 
 private:
     QString          debug_prefix_;
@@ -56,6 +57,10 @@ private:
     Ui::libsshqtgui *ui_;
     LibsshQtClient  *client_;
     State            state_;
+
+    QList<LibsshQtClient::KbiQuestion> kbi_questions_;
+    QStringList                        kbi_answers_;
+    int                                kbi_pos_;
 };
 
 // Include <QDebug> before "libsshqt.h" if you want to use these operators

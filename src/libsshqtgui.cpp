@@ -17,7 +17,8 @@ LibsshQtGui::LibsshQtGui(QWidget *parent) :
     debug_output_(false),
     ui_(new Ui::libsshqtgui),
     client_(0),
-    state_(StateHidden)
+    state_(StateHidden),
+    kbi_pos_(0)
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
     ui_->setupUi(this);
@@ -114,7 +115,17 @@ void LibsshQtGui::done(int code)
             break;
 
         case StateKbiAuthDlg:
-            //! @todo
+            kbi_answers_ << ui_->question_line->text();
+
+            if ( kbi_pos_ < kbi_questions_.count()) {
+                QTimer::singleShot(0, this, SLOT(showNextKbiQuestion()));
+
+            } else {
+                client_->setKbiAnswers(kbi_answers_);
+                kbi_questions_.clear();
+                kbi_answers_.clear();
+                kbi_pos_ = 0;
+            }
             break;
         }
 
@@ -159,7 +170,28 @@ void LibsshQtGui::handleNeedPassword()
 void LibsshQtGui::handleNeedKbiAnswers()
 {
     setState(StateKbiAuthDlg);
-    //! @todo
+
+    kbi_pos_       = 0;
+    kbi_questions_ = client_->kbiQuestions();
+    showNextKbiQuestion();
+}
+
+void LibsshQtGui::showNextKbiQuestion()
+{
+    if ( kbi_pos_ < kbi_questions_.count()) {
+        LibsshQtClient::KbiQuestion question = kbi_questions_.at(kbi_pos_);
+        LIBSSHQT_DEBUG("Showing KBI question" << kbi_pos_ + 1 << "/" <<
+                       kbi_questions_.count() << ":" << question);
+
+        QString msg = question.question;
+        if ( ! question.instruction.isEmpty()) {
+            msg += "\n\n" + question.instruction;
+        }
+
+        showQuestionPage(msg, question.showAnswer);
+    }
+
+    kbi_pos_++;
 }
 
 void LibsshQtGui::handleAuthFailed()
@@ -217,14 +249,19 @@ void LibsshQtGui::showHostPage(QString message, QString hostname, QString key)
     show();
 }
 
-void LibsshQtGui::showQuestionPage(QString question)
+void LibsshQtGui::showQuestionPage(QString question, bool show_answer)
 {
     setWindowTitle(tr("Credentials needed"));
 
     ui_->pages->setCurrentIndex(1);
     ui_->question_label->setText(question);
     ui_->question_line->clear();
-    ui_->question_line->setEchoMode(QLineEdit::Password);
+
+    if ( show_answer ) {
+        ui_->question_line->setEchoMode(QLineEdit::Normal);
+    } else {
+        ui_->question_line->setEchoMode(QLineEdit::Password);
+    }
 
     ui_->host_msg_label->clear();
     ui_->host_name_label->clear();
