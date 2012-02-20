@@ -15,6 +15,9 @@
 #define LIBSSHQT_FATAL(_message_) \
     qFatal("%s Fatal error: %s", qPrintable(debug_prefix_), _message_);
 
+#define LIBSSHQT_HEXNAME(_object_) \
+    qPrintable(LibsshQt::hexAndName(_object_))
+
 namespace LibsshQt
 {
     inline QString hexAndName(QObject *object)

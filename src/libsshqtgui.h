@@ -40,7 +40,8 @@ public:
 
 private slots:
     void handleUnknownHost();
-    void handleChooseAuth();
+    void handleNeedPassword();
+    void handleNeedKbiAnswers();
     void handleAuthFailed();
 
 private:

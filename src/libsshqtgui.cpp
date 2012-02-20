@@ -23,8 +23,11 @@ LibsshQtGui::LibsshQtGui(QWidget *parent) :
     ui_->setupUi(this);
 
     QSize size(64, 64);
-    setUnknownHostIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(size));
-    setPasswordIcon(style()->standardIcon(QStyle::SP_MessageBoxQuestion).pixmap(size));
+    QIcon warning  = style()->standardIcon(QStyle::SP_MessageBoxWarning);
+    QIcon question = style()->standardIcon(QStyle::SP_MessageBoxQuestion);
+
+    setUnknownHostIcon(warning.pixmap(size));
+    setPasswordIcon(question.pixmap(size));
 
     resize(default_size);
 }
@@ -52,19 +55,23 @@ void LibsshQtGui::setClient(LibsshQtClient *client)
     LIBSSHQT_DEBUG("Client set to:" <<
                    qPrintable(LibsshQt::hexAndName(client)));
 
-    connect(client_, SIGNAL(unknownHost()), this, SLOT(handleUnknownHost()));
-    connect(client_, SIGNAL(chooseAuth()),  this, SLOT(handleChooseAuth()));
-    connect(client_, SIGNAL(authFailed()),  this, SLOT(handleAuthFailed()));
+    connect(client_, SIGNAL(unknownHost()),    this, SLOT(handleUnknownHost()));
+    connect(client_, SIGNAL(authFailed()),     this, SLOT(handleAuthFailed()));
+    connect(client_, SIGNAL(needPassword()),   this, SLOT(handleNeedPassword()));
+    connect(client_, SIGNAL(needKbiAnswers()), this, SLOT(handleNeedKbiAnswers()));
 
-    connect(client_, SIGNAL(closed()),      this, SLOT(hide()));
-    connect(client_, SIGNAL(opened()),      this, SLOT(hide()));
-    connect(client_, SIGNAL(error()),       this, SLOT(hide()));
+    connect(client_, SIGNAL(closed()), this, SLOT(hide()));
+    connect(client_, SIGNAL(opened()), this, SLOT(hide()));
+    connect(client_, SIGNAL(error()),  this, SLOT(hide()));
 
     if ( client->state() == LibsshQtClient::StateUnknownHost ) {
         handleUnknownHost();
 
-    } else if ( client->state() == LibsshQtClient::StateAuthChoose ) {
-        handleChooseAuth();
+    } else if ( client->state() == LibsshQtClient::StateAuthNeedPassword ) {
+        handleNeedPassword();
+
+    } else if ( client->state() == LibsshQtClient::StateAuthKbiQuestions ) {
+        handleNeedKbiAnswers();
 
     } else if ( client->state() == LibsshQtClient::StateAuthFailed ) {
         handleAuthFailed();
@@ -88,22 +95,22 @@ LibsshQtGui::State LibsshQtGui::state() const
 
 void LibsshQtGui::done(int code)
 {
-    LIBSSHQT_DEBUG("Dialog finished with code" << code << "in state" << state_);
-
     if ( code == QDialog::Accepted) {
+        LIBSSHQT_DEBUG("Dialog accepted in state:" << state_);
+
         switch ( state_ ) {
         case StateHidden:
             // What are we doing here?
             break;
 
         case StateUnknownHostDlg:
-            LIBSSHQT_DEBUG("User accepted the host");
+            LIBSSHQT_DEBUG("Accepting host");
             client_->markCurrentHostKnown();
             break;
 
         case StatePasswordAuthDlg:
-            LIBSSHQT_DEBUG("Enabling password authentication");
-            client_->usePasswordAuth(true, ui_->question_line->text());
+            LIBSSHQT_DEBUG("Setting password");
+            client_->setPassword(ui_->question_line->text());
             break;
 
         case StateKbiAuthDlg:
@@ -112,6 +119,8 @@ void LibsshQtGui::done(int code)
         }
 
     } else {
+        LIBSSHQT_DEBUG("Dialog rejected in state:" << state_);
+        LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
         client_->disconnectFromHost();
     }
 
@@ -138,35 +147,44 @@ void LibsshQtGui::handleUnknownHost()
                  client_->hostPublicKeyHash());
 }
 
-void LibsshQtGui::handleChooseAuth()
+void LibsshQtGui::handleNeedPassword()
 {
-    LIBSSHQT_DEBUG("Handling choose auth");
+    setState(StatePasswordAuthDlg);
+    QString question = QString(tr("Type password for %1@%2"))
+                       .arg(client_->username())
+                       .arg(client_->hostname());
+    showQuestionPage(question);
+}
 
-    LibsshQtClient::AuthMethods supported = client_->supportedAuthMethods();
-    LibsshQtClient::UseAuths    failed    = client_->failedAuths();
-
-    if ( supported == LibsshQtClient::AuthMethodUnknown &&
-         ! ( failed & LibsshQtClient::UseAuthNone )) {
-        setState(StateHidden);
-        client_->useNoneAuth(true);
-
-    } else if ( supported &  LibsshQtClient::AuthMethodPassword ) {
-        setState(StatePasswordAuthDlg);
-        QString question = QString(tr("Type password for %1@%2"))
-                           .arg(client_->username())
-                           .arg(client_->hostname());
-        showQuestionPage(question);
-
-    } else if ( supported & LibsshQtClient::AuthMethodKbi ) {
-        setState(StateKbiAuthDlg);
-        client_->useKbiAuth(true);
-    }
+void LibsshQtGui::handleNeedKbiAnswers()
+{
+    setState(StateKbiAuthDlg);
+    //! @todo
 }
 
 void LibsshQtGui::handleAuthFailed()
 {
-    LIBSSHQT_DEBUG("Handling failed auth");
-    handleChooseAuth();
+    LibsshQtClient::AuthMethods supported = client_->supportedAuthMethods();
+    LibsshQtClient::UseAuths    failed    = client_->failedAuths();
+
+    if ( failed & LibsshQtClient::UseAuthPassword &&
+         supported &  LibsshQtClient::AuthMethodPassword ) {
+        LIBSSHQT_DEBUG("Retrying:" << LibsshQtClient::AuthMethodPassword);
+        client_->usePasswordAuth(true);
+
+    } else if ( failed & LibsshQtClient::UseAuthKbi &&
+                supported & LibsshQtClient::AuthMethodKbi ) {
+        LIBSSHQT_DEBUG("Retrying:" << LibsshQtClient::UseAuthKbi);
+        client_->useKbiAuth(true);
+
+    } else {
+        LIBSSHQT_DEBUG("Supported auth:" << supported);
+        LIBSSHQT_DEBUG("Failed auths:" << failed);
+        LIBSSHQT_DEBUG("Cannot find an authentication method that is enabled" <<
+                       "by the user and supported by the host");
+        LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
+        client_->disconnect();
+    }
 }
 
 void LibsshQtGui::setState(State state)
