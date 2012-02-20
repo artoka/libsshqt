@@ -495,30 +495,25 @@ QString LibsshQtClient::unknownHostMessage()
 
     case HostKnown:
         return QString() +
-                "Server is known. Public key used by this server is:" +
-                hostPublicKeyHash();
+                "This host is known.";
 
     case HostUnknown:
     case HostKnownHostsFileMissing:
         return QString() +
-                "The server is unknown. Do you want to add the server to the" +
-                "known servers? Public key used by this server is:" +
-                hostPublicKeyHash();
+                "This host is unknown. Do you want to add the host to the " +
+                "list known hosts?";
 
     case HostKeyChanged:
         return QString() +
-                "WARNING: Public key sent by the server does not match" +
+                "WARNING: Public key sent by the host does not match" +
                 "expected value. A third party may be attempting to " +
-                "impersonate the server. Public key used by this server is:" +
-                hostPublicKeyHash();
+                "impersonate the host.";
 
     case HostKeyTypeChanged:
         return QString() +
-                "WARNING: Public key type sent by the server does not match" +
+                "WARNING: Public key type sent by the host does not match" +
                 "expected value. A third party may be attempting to " +
-                "impersonate the server. Public key used by this server is:" +
-                hostPublicKeyHash();
-
+                "impersonate the host.";
     }
 
     Q_ASSERT_X(false, __func__, "Case was not handled properly");
