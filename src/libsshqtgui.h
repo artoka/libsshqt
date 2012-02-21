@@ -47,8 +47,8 @@ private slots:
 
 private:
     void setState(State state);
-    void showHostPage(QString message, QString hostname, QString key);
-    void showQuestionPage(QString question, bool show_answer = false);
+    void showHostDlg(QString message, QString info);
+    void showAuthDlg(QString message, bool show_answer = false);
 
 private:
     QString          debug_prefix_;
