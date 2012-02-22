@@ -381,7 +381,7 @@ void LibsshQtClient::useAuth(UseAuths auths, bool enabled)
 /*!
     This enables all authentications you would normally like to use.
 */
-void LibsshQtClient::useAuthDefaults()
+void LibsshQtClient::useDefaultAuths()
 {
     UseAuths a(UseAuthNone | UseAuthAutoPubKey | UseAuthPassword | UseAuthKbi);
     useAuth(a, true);

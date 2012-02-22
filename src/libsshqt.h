@@ -142,7 +142,7 @@ public:
 
     // Authentication
     void useAuth(UseAuths auths, bool enabled);
-    void useAuthDefaults();
+    void useDefaultAuths();
     void useNoneAuth(bool enabled);
     void useAutoKeyAuth(bool enabled);
     void usePasswordAuth(bool enabled);
