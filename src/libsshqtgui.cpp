@@ -10,6 +10,10 @@
 #include "libsshqtdebug.h"
 #include "libsshqt.h"
 
+static const QSize icon_size(64, 64);
+static const QSize min_size(450, 150);
+static const QSize max_size(640, 480);
+
 LibsshQtGui::LibsshQtGui(QWidget *parent) :
     QDialog(parent),
     debug_output_(false),
@@ -19,19 +23,13 @@ LibsshQtGui::LibsshQtGui(QWidget *parent) :
     kbi_pos_(0)
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
+
     ui_->setupUi(this);
     ui_->host_widget->hide();
     ui_->auth_widget->hide();
 
-    setMinimumSize(450, 150);
-    setMaximumSize(640, 480);
-
-    QSize size(64, 64);
-    QIcon warning  = style()->standardIcon(QStyle::SP_MessageBoxWarning);
-    QIcon question = style()->standardIcon(QStyle::SP_MessageBoxQuestion);
-
-    setUnknownHostIcon(warning.pixmap(size));
-    setPasswordIcon(question.pixmap(size));
+    setUnknownHostIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+    setAuthIcon(style()->standardIcon(QStyle::SP_MessageBoxQuestion));
 }
 
 LibsshQtGui::~LibsshQtGui()
@@ -52,6 +50,7 @@ void LibsshQtGui::setClient(LibsshQtClient *client)
         client_->disconnect(this);
     }
 
+    hide();
     client_ = client;
     debug_output_ = client->isDebugEnabled();
     LIBSSHQT_DEBUG("Client set to:" <<
@@ -80,14 +79,14 @@ void LibsshQtGui::setClient(LibsshQtClient *client)
     }
 }
 
-void LibsshQtGui::setUnknownHostIcon(QPixmap pixmap)
+void LibsshQtGui::setUnknownHostIcon(QIcon icon)
 {
-    ui_->host_icon_label->setPixmap(pixmap);
+    ui_->host_icon_label->setPixmap(icon.pixmap(icon_size));
 }
 
-void LibsshQtGui::setPasswordIcon(QPixmap pixmap)
+void LibsshQtGui::setAuthIcon(QIcon icon)
 {
-    ui_->auth_icon_label->setPixmap(pixmap);
+    ui_->auth_icon_label->setPixmap(icon.pixmap(icon_size));
 }
 
 LibsshQtGui::State LibsshQtGui::state() const
@@ -97,7 +96,12 @@ LibsshQtGui::State LibsshQtGui::state() const
 
 void LibsshQtGui::done(int code)
 {
-    if ( code == QDialog::Accepted) {
+    Q_ASSERT( state_ != StateHidden );
+
+    if ( state_ == StateHidden ) {
+        LIBSSHQT_CRITICAL("done() called in state:" << state_);
+
+    } else if ( code == QDialog::Accepted) {
         LIBSSHQT_DEBUG("Dialog accepted in state:" << state_);
 
         switch ( state_ ) {
@@ -145,13 +149,24 @@ void LibsshQtGui::setVisible(bool visible)
 
     if ( visible ) {
         Q_ASSERT( state_ != StateHidden );
-    } else {
+
+    } else if ( state_ != StateHidden ) {
+
+        // Clear dialog for reuse
+        ui_->host_info_label->clear();
+        ui_->host_msg_label->clear();
+        ui_->host_widget->hide();
+        ui_->auth_msg_label->clear();
+        ui_->auth_line->clear();
+        ui_->auth_widget->hide();
+
         setState(StateHidden);
     }
 }
 
 void LibsshQtGui::handleUnknownHost()
 {
+    Q_ASSERT( state_ == StateHidden );
     LIBSSHQT_DEBUG("Handling unknown host");
     setState(StateUnknownHostDlg);
 
@@ -171,7 +186,10 @@ void LibsshQtGui::handleUnknownHost()
 
 void LibsshQtGui::handleNeedPassword()
 {
+    Q_ASSERT( state_ == StateHidden );
+    LIBSSHQT_DEBUG("Handling password input");
     setState(StatePasswordAuthDlg);
+
     QString question = QString(tr("Type password for %1@%2"))
                        .arg(client_->username())
                        .arg(client_->hostname());
@@ -180,17 +198,22 @@ void LibsshQtGui::handleNeedPassword()
 
 void LibsshQtGui::handleNeedKbiAnswers()
 {
+    Q_ASSERT( state_ == StateHidden );
+    LIBSSHQT_DEBUG("Handling KBI answer input");
     setState(StateKbiAuthDlg);
 
     kbi_pos_       = 0;
     kbi_questions_ = client_->kbiQuestions();
 
-    Q_ASSERT( kbi_questions_.count() > 0 );
     showNextKbiQuestion();
 }
 
 void LibsshQtGui::showNextKbiQuestion()
 {
+    Q_ASSERT( state_ == StateHidden || state_ == StateKbiAuthDlg );
+    Q_ASSERT( kbi_questions_.count() > 0 );
+    Q_ASSERT( kbi_pos_ < kbi_questions_.count());
+
     if ( kbi_pos_ < kbi_questions_.count()) {
         LibsshQtClient::KbiQuestion question = kbi_questions_.at(kbi_pos_);
         LIBSSHQT_DEBUG("Showing KBI question" << kbi_pos_ + 1 << "/" <<
@@ -253,14 +276,16 @@ void LibsshQtGui::showHostDlg(QString message, QString info)
 {
     setWindowTitle(tr("Unknown Host"));
 
-    ui_->auth_widget->hide();
     ui_->host_widget->show();
     ui_->host_msg_label->setText(message);
     ui_->host_info_label->setText(info);
     ui_->button_box->setStandardButtons(QDialogButtonBox::Yes |
                                         QDialogButtonBox::No);
 
-    resize(sizeHint());
+
+    QSize size = sizeHint().boundedTo(max_size).expandedTo(min_size);
+    setMinimumSize(size);
+    setMaximumSize(size);
     show();
 }
 
@@ -268,7 +293,6 @@ void LibsshQtGui::showAuthDlg(QString message, bool show_answer)
 {
     setWindowTitle(tr("Authentication"));
 
-    ui_->host_widget->hide();
     ui_->auth_widget->show();
     ui_->auth_msg_label->setText(message);
     ui_->auth_line->clear();
@@ -281,7 +305,9 @@ void LibsshQtGui::showAuthDlg(QString message, bool show_answer)
         ui_->auth_line->setEchoMode(QLineEdit::Password);
     }
 
-    resize(sizeHint());
+    QSize size = sizeHint().boundedTo(max_size).expandedTo(min_size);
+    setMinimumSize(size);
+    setMaximumSize(size);
     show();
 }
 

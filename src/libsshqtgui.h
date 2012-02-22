@@ -29,10 +29,9 @@ public:
 
     static const char *enumToString(const State value);
 
-
     void setClient(LibsshQtClient *client);
-    void setUnknownHostIcon(QPixmap pixmap);
-    void setPasswordIcon(QPixmap pixmap);
+    void setUnknownHostIcon(QIcon icon);
+    void setAuthIcon(QIcon icon);
     State state() const;
 
     void done(int code);
