@@ -1,4 +1,4 @@
 include(libsshqt.pri)
-HEADERS += $$PWD/src/libsshqtgui.h
-SOURCES += $$PWD/src/libsshqtgui.cpp
-FORMS   += $$PWD/src/libsshqtgui.ui
+HEADERS += $$PWD/src/libsshqtquestiondialog.h
+SOURCES += $$PWD/src/libsshqtquestiondialog.cpp
+FORMS   += $$PWD/src/libsshqtquestiondialog.ui

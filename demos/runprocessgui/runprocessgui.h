@@ -4,7 +4,7 @@
 #include <QMainWindow>
 
 #include "libsshqt.h"
-#include "libsshqtgui.h"
+#include "libsshqtquestiondialog.h"
 
 namespace Ui {
     class runprocessgui;

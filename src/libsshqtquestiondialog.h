@@ -1,5 +1,5 @@
-#ifndef LIBSSHQTGUI_H
-#define LIBSSHQTGUI_H
+#ifndef LIBSSHQTQUESTIONDIALOG_H
+#define LIBSSHQTQUESTIONDIALOG_H
 
 #include <QDialog>
 
@@ -81,7 +81,7 @@ inline QDebug operator<<(QDebug dbg, const LibsshQtQuestionDialog::State value)
 
 #endif
 
-#endif // LIBSSHQTGUI_H
+#endif // LIBSSHQTQUESTIONDIALOG_H
 
 
 

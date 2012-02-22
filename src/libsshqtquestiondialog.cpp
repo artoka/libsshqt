@@ -4,8 +4,8 @@
 #include <QIcon>
 #include <QTextDocument>
 
-#include "libsshqtgui.h"
-#include "ui_libsshqtgui.h"
+#include "libsshqtquestiondialog.h"
+#include "ui_libsshqtquestiondialog.h"
 
 #include "libsshqtdebug.h"
 #include "libsshqt.h"
