@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>libsshqtgui</class>
- <widget class="QDialog" name="libsshqtgui">
+ <class>LibsshQtQuestionDialog</class>
+ <widget class="QDialog" name="LibsshQtQuestionDialog">
   <property name="sizePolicy">
    <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
     <horstretch>0</horstretch>
@@ -160,7 +160,7 @@
   <connection>
    <sender>button_box</sender>
    <signal>accepted()</signal>
-   <receiver>libsshqtgui</receiver>
+   <receiver>LibsshQtQuestionDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -176,7 +176,7 @@
   <connection>
    <sender>button_box</sender>
    <signal>rejected()</signal>
-   <receiver>libsshqtgui</receiver>
+   <receiver>LibsshQtQuestionDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

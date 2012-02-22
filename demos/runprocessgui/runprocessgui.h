@@ -33,10 +33,10 @@ private slots:
     void readProcessStderr();
 
 private:
-    Ui::runprocessgui *ui;
-    LibsshQtClient    *client;
-    LibsshQtProcess   *process;
-    LibsshQtGui       *gui;
+    Ui::runprocessgui       *ui;
+    LibsshQtClient          *client;
+    LibsshQtProcess         *process;
+    LibsshQtQuestionDialog  *gui;
 };
 
 #endif // RUNPROCESSGUI_H

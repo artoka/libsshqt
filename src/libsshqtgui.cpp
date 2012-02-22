@@ -14,10 +14,10 @@ static const QSize icon_size(64, 64);
 static const QSize min_size(450, 150);
 static const QSize max_size(640, 480);
 
-LibsshQtGui::LibsshQtGui(QWidget *parent) :
+LibsshQtQuestionDialog::LibsshQtQuestionDialog(QWidget *parent) :
     QDialog(parent),
     debug_output_(false),
-    ui_(new Ui::libsshqtgui),
+    ui_(new Ui::LibsshQtQuestionDialog),
     client_(0),
     state_(StateHidden),
     kbi_pos_(0)
@@ -32,19 +32,19 @@ LibsshQtGui::LibsshQtGui(QWidget *parent) :
     setAuthIcon(style()->standardIcon(QStyle::SP_MessageBoxQuestion));
 }
 
-LibsshQtGui::~LibsshQtGui()
+LibsshQtQuestionDialog::~LibsshQtQuestionDialog()
 {
     delete ui_;
 }
 
-const char *LibsshQtGui::enumToString(const State value)
+const char *LibsshQtQuestionDialog::enumToString(const State value)
 {
     return staticMetaObject.enumerator(
                 staticMetaObject.indexOfEnumerator("State"))
                     .valueToKey(value);
 }
 
-void LibsshQtGui::setClient(LibsshQtClient *client)
+void LibsshQtQuestionDialog::setClient(LibsshQtClient *client)
 {
     if ( client_ ) {
         client_->disconnect(this);
@@ -79,22 +79,22 @@ void LibsshQtGui::setClient(LibsshQtClient *client)
     }
 }
 
-void LibsshQtGui::setUnknownHostIcon(QIcon icon)
+void LibsshQtQuestionDialog::setUnknownHostIcon(QIcon icon)
 {
     ui_->host_icon_label->setPixmap(icon.pixmap(icon_size));
 }
 
-void LibsshQtGui::setAuthIcon(QIcon icon)
+void LibsshQtQuestionDialog::setAuthIcon(QIcon icon)
 {
     ui_->auth_icon_label->setPixmap(icon.pixmap(icon_size));
 }
 
-LibsshQtGui::State LibsshQtGui::state() const
+LibsshQtQuestionDialog::State LibsshQtQuestionDialog::state() const
 {
     return state_;
 }
 
-void LibsshQtGui::done(int code)
+void LibsshQtQuestionDialog::done(int code)
 {
     Q_ASSERT( state_ != StateHidden );
 
@@ -143,7 +143,7 @@ void LibsshQtGui::done(int code)
     QDialog::done(code);
 }
 
-void LibsshQtGui::setVisible(bool visible)
+void LibsshQtQuestionDialog::setVisible(bool visible)
 {
     QDialog::setVisible(visible);
 
@@ -164,7 +164,7 @@ void LibsshQtGui::setVisible(bool visible)
     }
 }
 
-void LibsshQtGui::handleUnknownHost()
+void LibsshQtQuestionDialog::handleUnknownHost()
 {
     Q_ASSERT( state_ == StateHidden );
     LIBSSHQT_DEBUG("Handling unknown host");
@@ -184,7 +184,7 @@ void LibsshQtGui::handleUnknownHost()
     showHostDlg(msg, info);
 }
 
-void LibsshQtGui::handleNeedPassword()
+void LibsshQtQuestionDialog::handleNeedPassword()
 {
     Q_ASSERT( state_ == StateHidden );
     LIBSSHQT_DEBUG("Handling password input");
@@ -196,7 +196,7 @@ void LibsshQtGui::handleNeedPassword()
     showAuthDlg(question);
 }
 
-void LibsshQtGui::handleNeedKbiAnswers()
+void LibsshQtQuestionDialog::handleNeedKbiAnswers()
 {
     Q_ASSERT( state_ == StateHidden );
     LIBSSHQT_DEBUG("Handling KBI answer input");
@@ -208,7 +208,7 @@ void LibsshQtGui::handleNeedKbiAnswers()
     showNextKbiQuestion();
 }
 
-void LibsshQtGui::showNextKbiQuestion()
+void LibsshQtQuestionDialog::showNextKbiQuestion()
 {
     Q_ASSERT( state_ == StateHidden || state_ == StateKbiAuthDlg );
     Q_ASSERT( kbi_questions_.count() > 0 );
@@ -236,7 +236,7 @@ void LibsshQtGui::showNextKbiQuestion()
     }
 }
 
-void LibsshQtGui::handleAuthFailed()
+void LibsshQtQuestionDialog::handleAuthFailed()
 {
     LibsshQtClient::AuthMethods supported = client_->supportedAuthMethods();
     LibsshQtClient::UseAuths    failed    = client_->failedAuths();
@@ -261,7 +261,7 @@ void LibsshQtGui::handleAuthFailed()
     }
 }
 
-void LibsshQtGui::setState(State state)
+void LibsshQtQuestionDialog::setState(State state)
 {
     if ( state_ == state ) {
         LIBSSHQT_DEBUG("State is already" << state);
@@ -272,7 +272,7 @@ void LibsshQtGui::setState(State state)
     state_ = state;
 }
 
-void LibsshQtGui::showHostDlg(QString message, QString info)
+void LibsshQtQuestionDialog::showHostDlg(QString message, QString info)
 {
     setWindowTitle(tr("Unknown Host"));
 
@@ -289,7 +289,7 @@ void LibsshQtGui::showHostDlg(QString message, QString info)
     show();
 }
 
-void LibsshQtGui::showAuthDlg(QString message, bool show_answer)
+void LibsshQtQuestionDialog::showAuthDlg(QString message, bool show_answer)
 {
     setWindowTitle(tr("Authentication"));
 

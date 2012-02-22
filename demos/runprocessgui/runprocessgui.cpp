@@ -10,7 +10,7 @@ RunProcessGui::RunProcessGui(QWidget *parent) :
     ui(new Ui::runprocessgui),
     client(new LibsshQtClient(this)),
     process(0),
-    gui(new LibsshQtGui(this))
+    gui(new LibsshQtQuestionDialog(this))
 {
     ui->setupUi(this);
     client->setDebug(true);
