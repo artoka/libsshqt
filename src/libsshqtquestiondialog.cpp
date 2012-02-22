@@ -44,6 +44,9 @@ const char *LibsshQtQuestionDialog::enumToString(const State value)
                     .valueToKey(value);
 }
 
+/*!
+    Set which LibsshQtClient object is handled by LibsshQtQuestionDialog.
+*/
 void LibsshQtQuestionDialog::setClient(LibsshQtClient *client)
 {
     if ( client_ ) {
@@ -79,11 +82,21 @@ void LibsshQtQuestionDialog::setClient(LibsshQtClient *client)
     }
 }
 
+/*!
+    Set which icon is used in "Unknown Host" dialogs.
+
+    Defaults to QStyle::SP_MessageBoxWarning
+*/
 void LibsshQtQuestionDialog::setUnknownHostIcon(QIcon icon)
 {
     ui_->host_icon_label->setPixmap(icon.pixmap(icon_size));
 }
 
+/*!
+    Set which icon is used in "Authentication" dialogs.
+
+    Defaults to QStyle::SP_MessageBoxQuestion
+*/
 void LibsshQtQuestionDialog::setAuthIcon(QIcon icon)
 {
     ui_->auth_icon_label->setPixmap(icon.pixmap(icon_size));

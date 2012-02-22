@@ -9,6 +9,26 @@ namespace Ui {
     class LibsshQtQuestionDialog;
 }
 
+/*!
+
+    LibsshQtQuestionDialog - Question dialog for LibsshQtClient
+
+    LibsshQtQuestionDialog implements the standard question dialogs needed while
+    connecting to a SSH server. Specifically LibsshQtQuestionDialog handles
+    unknownHost, needPassword and needKbiAnswers signals sent by LibsshQtClient
+    and displays the appropriate dialog to the user.
+
+    If LibsshQtClient sends authFailed signal, then LibsshQtQuestionDialog will
+    check what authentication method was attempted, re-enable it, and then
+    re-display the authentication dialog, so that the user can attempt to write
+    the password correctly this time.
+
+    If user cancels the dialog, LibsshQtClient::disconnectFromHost() is called.
+
+    Use setClient() function to set which LibsshQtClient object is handled by
+    LibsshQtQuestionDialog.
+
+*/
 class LibsshQtQuestionDialog : public QDialog
 {
     Q_OBJECT
