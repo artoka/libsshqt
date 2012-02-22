@@ -68,6 +68,9 @@ void RunProcessGui::on_run_button_clicked()
         process = 0;
     }
 
+    client->disconnectFromHost();
+    ui->output_edit->clear();
+
     //client->useAuthDefaults();
     client->useNoneAuth(ui->auth_none->isChecked());
     client->useAutoKeyAuth(ui->auth_pubkey->isChecked());
@@ -88,8 +91,9 @@ void RunProcessGui::on_run_button_clicked()
     connect(process, SIGNAL(error()),       this, SLOT(handleProcessError()));
     connect(process, SIGNAL(finished(int)), this, SLOT(handleProcessFinished(int)));
 
-    connect(process,           SIGNAL(readyRead()), this, SLOT(readProcessStdout()));
-    connect(process->stderr(), SIGNAL(readyRead()), this, SLOT(readProcessStderr()));
+    LibsshQtProcessStderr *stderr = process->stderr();
+    connect(process, SIGNAL(readyRead()), this, SLOT(readProcessStdout()));
+    connect(stderr,  SIGNAL(readyRead()), this, SLOT(readProcessStderr()));
 }
 
 void RunProcessGui::handleProcessOpened()
@@ -100,6 +104,11 @@ void RunProcessGui::handleProcessOpened()
 void RunProcessGui::handleProcessClosed()
 {
     statusBar()->showMessage("Process stopped");
+
+    // Process is closed, but there might still be data in
+    // LibsshQtProcess buffers.
+    readProcessStdout();
+    readProcessStderr();
 }
 
 void RunProcessGui::handleProcessError()
@@ -116,17 +125,27 @@ void RunProcessGui::readProcessStdout()
 {
     while ( process->canReadLine()) {
         QString line = process->readLine();
+
+        if ( line.endsWith('\n')) {
+            line.remove(line.length() - 1, 1);
+        }
+
         ui->output_edit->appendPlainText(line);
     }
 }
 
 void RunProcessGui::readProcessStderr()
 {
-    while ( process->canReadLine()) {
-        QString line = process->readLine();
+    while ( process->stderr()->canReadLine()) {
+        QString line = process->stderr()->readLine();
+
+        if ( line.endsWith('\n')) {
+            line.remove(line.length() - 1, 1);
+        }
+
         ui->output_edit->appendHtml(
                     QString("<font color=red>%1</font>")
-                        .arg(Qt::escape(line)));
+                        .arg(Qt::convertFromPlainText(line)));
     }
 }
 
