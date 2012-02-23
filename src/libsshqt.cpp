@@ -357,7 +357,7 @@ void LibsshQtClient::useAuth(UseAuths auths, bool enabled)
 {
     if ( enabled ) {
         use_auths_ |= auths;
-        if ( state_ == StateAuthChoose || state_ == StateAuthFailed ) {
+        if ( state_ == StateAuthChoose || state_ == StateAuthAllFailed ) {
             setState(StateAuthContinue);
             timer_.start();
         }
@@ -682,7 +682,7 @@ void LibsshQtClient::setState(State state)
     case StateAuthNeedPassword: emit needPassword();            break;
     case StateAuthKbi:                                          break;
     case StateAuthKbiQuestions: emit needKbiAnswers();          break;
-    case StateAuthFailed:       emit authFailed();              break;
+    case StateAuthAllFailed:    emit allAuthsFailed();          break;
     case StateOpened:           emit opened();                  break;
     case StateError:            emit error();                   break;
     }
@@ -697,6 +697,8 @@ void LibsshQtClient::setState(State state)
 */
 void LibsshQtClient::tryNextAuth()
 {
+    UseAuths failed_auth = UseAuthEmpty;
+
     // Detect failed authentication methods
     switch ( state_ ) {
     case StateClosed:
@@ -708,26 +710,38 @@ void LibsshQtClient::tryNextAuth()
     case StateAuthContinue:
     case StateAuthNeedPassword:
     case StateAuthKbiQuestions:
-    case StateAuthFailed:
+    case StateAuthAllFailed:
     case StateOpened:
     case StateError:
         break;
 
     case StateAuthNone:
-        failed_auths_ |= UseAuthNone;
+        failed_auth = UseAuthNone;
         break;
 
     case StateAuthAutoPubkey:
-        failed_auths_ |= UseAuthAutoPubKey;
+        failed_auth = UseAuthAutoPubKey;
         break;
 
     case StateAuthPassword:
-        failed_auths_ |= UseAuthPassword;
+        failed_auth = UseAuthPassword;
         break;
 
     case StateAuthKbi:
-        failed_auths_ |= UseAuthKbi;
+        failed_auth = UseAuthKbi;
         break;
+    }
+
+    if ( failed_auth != UseAuthEmpty ) {
+        failed_auths_ |= failed_auth;
+        State old_state = state_;
+        emit authFailed(failed_auth);
+
+        // User might close, or otherwise manipulate, the LibsshQtClient when an
+        // auth fails, so make sure that the state has not been changed.
+        if ( state_ != old_state ) {
+            return;
+        }
     }
 
     LIBSSHQT_DEBUG("Enabled auths:" << use_auths_);
@@ -738,7 +752,7 @@ void LibsshQtClient::tryNextAuth()
         setState(StateAuthChoose);
 
     } else if ( use_auths_ == UseAuthEmpty ) {
-        setState(StateAuthFailed);
+        setState(StateAuthAllFailed);
 
     } else if ( use_auths_ & UseAuthNone ) {
         use_auths_ &= ~UseAuthNone;
@@ -850,7 +864,7 @@ void LibsshQtClient::processState()
     case StateAuthChoose:
     case StateAuthNeedPassword:
     case StateAuthKbiQuestions:
-    case StateAuthFailed:
+    case StateAuthAllFailed:
     case StateError:
         return;
 

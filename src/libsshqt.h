@@ -47,7 +47,7 @@ public:
         StateAuthNeedPassword,
         StateAuthKbi,
         StateAuthKbiQuestions,
-        StateAuthFailed,
+        StateAuthAllFailed,
         StateOpened,
         StateError
     };
@@ -177,9 +177,10 @@ public:
 signals:
     void unknownHost();
     void chooseAuth();
-    void authFailed();
     void needPassword();        //!< Use setPassword() to set password
     void needKbiAnswers();      //!< Use setKbiAnswers() set answers
+    void authFailed(int auth);  //!< One authentication attempt has failed
+    void allAuthsFailed();      //!< All authentication attempts have failed
     void opened();
     void closed();
     void error();
