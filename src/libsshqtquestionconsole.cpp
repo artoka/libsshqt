@@ -26,8 +26,8 @@ LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :
 
     connect(client_, SIGNAL(unknownHost()),
             this,    SLOT(handleUnknownHost()));
-    connect(client_, SIGNAL(authFailed()),
-            this,    SLOT(handleAuthFailed()));
+    connect(client_, SIGNAL(authFailed(int)),
+            this,    SLOT(handleAuthFailed(int)));
     connect(client_, SIGNAL(needPassword()),
             this,    SLOT(handleNeedPassword()));
     connect(client_, SIGNAL(needKbiAnswers()),
@@ -42,8 +42,8 @@ LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :
     } else if ( client_->state() == LibsshQtClient::StateAuthKbiQuestions ) {
         handleNeedKbiAnswers();
 
-    } else if ( client_->state() == LibsshQtClient::StateAuthFailed ) {
-        handleAuthFailed();
+    } else if ( client_->state() == LibsshQtClient::StateAuthAllFailed ) {
+        handleAllAuthsFailed();
     }
 }
 
@@ -127,29 +127,34 @@ void LibsshQtQuestionConsole::handleNeedKbiAnswers()
     client_->setKbiAnswers(answers);
 }
 
-void LibsshQtQuestionConsole::handleAuthFailed()
+void LibsshQtQuestionConsole::handleAuthFailed(int auth)
 {
     LibsshQtClient::AuthMethods supported = client_->supportedAuthMethods();
-    LibsshQtClient::UseAuths    failed    = client_->failedAuths();
 
-    if ( failed    & LibsshQtClient::UseAuthPassword &&
+    if ( auth      & LibsshQtClient::UseAuthPassword &&
          supported & LibsshQtClient::AuthMethodPassword ) {
         LIBSSHQT_DEBUG("Retrying:" << LibsshQtClient::AuthMethodPassword);
         client_->usePasswordAuth(true);
 
-    } else if ( failed    & LibsshQtClient::UseAuthKbi &&
+    } else if ( auth      & LibsshQtClient::UseAuthKbi &&
                 supported & LibsshQtClient::AuthMethodKbi ) {
         LIBSSHQT_DEBUG("Retrying:" << LibsshQtClient::UseAuthKbi);
         client_->useKbiAuth(true);
-
-    } else {
-        LIBSSHQT_DEBUG("Supported auth:" << supported);
-        LIBSSHQT_DEBUG("Failed auths:" << failed);
-        LIBSSHQT_DEBUG("Cannot find an authentication method that is enabled" <<
-                       "by the user and supported by the host");
-        LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
-        client_->disconnect();
     }
+}
+
+void LibsshQtQuestionConsole::handleAllAuthsFailed()
+{
+    std::cout << qPrintable(tr("Could not authenticate to")) << " "
+              << qPrintable(client_->hostname()) << ":"
+              << client_->port() << std::endl;
+    std::cout.flush();
+
+    LIBSSHQT_DEBUG("All authentication attempts have failed");
+    LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
+    LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
+    LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
+    client_->disconnectFromHost();
 }
 
 QString LibsshQtQuestionConsole::readLine()

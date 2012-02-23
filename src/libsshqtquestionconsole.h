@@ -16,7 +16,8 @@ private slots:
     void handleUnknownHost();
     void handleNeedPassword();
     void handleNeedKbiAnswers();
-    void handleAuthFailed();
+    void handleAuthFailed(int auth);
+    void handleAllAuthsFailed();
 
 private:
     QString readLine();
