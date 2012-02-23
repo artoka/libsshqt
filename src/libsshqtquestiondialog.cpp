@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QMetaEnum>
 #include <QIcon>
+#include <QMessageBox>
 #include <QTextDocument>
 
 #include "libsshqtquestiondialog.h"
@@ -273,6 +274,21 @@ void LibsshQtQuestionDialog::handleAuthFailed(int auth)
 
 void LibsshQtQuestionDialog::handleAllAuthsFailed()
 {
+    QString message = QString("%1 %2:%3")
+            .arg(tr("Could not authenticate to"))
+            .arg(client_->hostname())
+            .arg(client_->port());
+
+    QMessageBox *msg_box = new QMessageBox(parentWidget());
+    msg_box->setWindowModality(windowModality());
+    msg_box->setWindowTitle(tr("Authentication failed"));
+    msg_box->setText(message);
+    msg_box->setIcon(QMessageBox::Information);
+    msg_box->show();
+
+    connect(msg_box, SIGNAL(accepted()), msg_box, SLOT(deleteLater()));
+    connect(msg_box, SIGNAL(rejected()), msg_box, SLOT(deleteLater()));
+
     LIBSSHQT_DEBUG("All authentication attempts have failed");
     LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
     LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
