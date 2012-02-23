@@ -950,7 +950,13 @@ void LibsshQtClient::processState()
 
     case StateAuthPassword:
     {
-        if ( ! password_set_ ) {
+        int status = ssh_get_status(session_);
+        if ( status == SSH_CLOSED ||
+             status == SSH_CLOSED_ERROR) {
+            setState(StateError);
+            return;
+
+        } else if ( ! password_set_ ) {
             setState(StateAuthNeedPassword);
             return;
 
@@ -990,10 +996,18 @@ void LibsshQtClient::processState()
 
     case StateOpened:
     {
-        // Activate processState() function on all children so that they can
-        // process their events and read and write IO.
-        emit doProcessState();
-        return;
+        int status = ssh_get_status(session_);
+        if ( status == SSH_CLOSED ||
+             status == SSH_CLOSED_ERROR) {
+            setState(StateError);
+            return;
+
+        } else {
+            // Activate processState() function on all children so that they can
+            // process their events and read and write IO.
+            emit doProcessState();
+            return;
+        }
     } break;
 
     } // End switch
