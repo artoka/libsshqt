@@ -62,7 +62,8 @@ private slots:
     void handleNeedPassword();
     void handleNeedKbiAnswers();
     void showNextKbiQuestion();
-    void handleAuthFailed();
+    void handleAuthFailed(int auth);
+    void handleAllAuthsFailed();
 
 private:
     void setState(State state);
