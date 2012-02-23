@@ -344,18 +344,7 @@ void LibsshQtClient::disconnectFromHost()
         // resources
         emit doCleanup();
 
-        if ( read_notifier_ ) {
-            read_notifier_->setEnabled(false);
-            read_notifier_->deleteLater();
-            read_notifier_ = 0;
-        }
-
-        if ( write_notifier_ ) {
-            write_notifier_->setEnabled(false);
-            write_notifier_->deleteLater();
-            write_notifier_ = 0;
-        }
-
+        destroyNotifiers();
         ssh_disconnect(session_);
         setState(StateClosed);
     }
@@ -674,6 +663,11 @@ void LibsshQtClient::setState(State state)
     LIBSSHQT_DEBUG("Changing state to" << state);
     state_ = state;
 
+    if ( state_ == StateError ) {
+        destroyNotifiers();
+    }
+
+    // Emit signals
     switch ( state_ ) {
     case StateClosed:           emit closed();                  break;
     case StateClosing:                                          break;
@@ -795,13 +789,32 @@ void LibsshQtClient::setUpNotifiers()
     }
 }
 
+void LibsshQtClient::destroyNotifiers()
+{
+    if ( read_notifier_ ) {
+        read_notifier_->disconnect(this);
+        read_notifier_->setEnabled(false);
+        read_notifier_->deleteLater();
+        read_notifier_ = 0;
+    }
+
+    if ( write_notifier_ ) {
+        write_notifier_->disconnect(this);
+        write_notifier_->setEnabled(false);
+        write_notifier_->deleteLater();
+        write_notifier_ = 0;
+    }
+}
+
 void LibsshQtClient::handleSocketReadable(int socket)
 {
     Q_UNUSED( socket );
 
     read_notifier_->setEnabled(false);
     processStateGuard();
-    read_notifier_->setEnabled(true);
+    if ( read_notifier_ ) {
+        read_notifier_->setEnabled(true);
+    }
 }
 
 void LibsshQtClient::handleSocketWritable(int socket)
@@ -822,7 +835,7 @@ void LibsshQtClient::processStateGuard()
     processState();
     process_state_running_ = false;
 
-    if ( enable_writable_nofifier_ ) {
+    if ( write_notifier_ && enable_writable_nofifier_ ) {
         write_notifier_->setEnabled(true);
     }
 }

@@ -192,6 +192,7 @@ private:
     void setState(State state);
     void tryNextAuth();
     void setUpNotifiers();
+    void destroyNotifiers();
     void processState();
     void handleAuthResponse(int rc, const char *func, UseAuthFlag auth);
 
