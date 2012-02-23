@@ -87,11 +87,11 @@ public:
     Q_FLAGS(UseAuthFlag)
     enum UseAuthFlag
     {
-        UseAuthEmpty                = 0,    //<! Auth method not chosen
-        UseAuthNone                 = 1<<0, //<! SSH None authentication method
-        UseAuthAutoPubKey           = 1<<1, //<! Keys from ~/.ssh and ssh-agent
-        UseAuthPassword             = 1<<2, //<! SSH Password auth method
-        UseAuthKbi                  = 1<<3  //<! SSH KBI auth method
+        UseAuthEmpty                = 0,    //!< Auth method not chosen
+        UseAuthNone                 = 1<<0, //!< SSH None authentication method
+        UseAuthAutoPubKey           = 1<<1, //!< Keys from ~/.ssh and ssh-agent
+        UseAuthPassword             = 1<<2, //!< SSH Password auth method
+        UseAuthKbi                  = 1<<3  //!< SSH KBI auth method
     };
     Q_DECLARE_FLAGS(UseAuths, UseAuthFlag)
 
@@ -178,15 +178,15 @@ signals:
     void unknownHost();
     void chooseAuth();
     void authFailed();
-    void needPassword();    //!< Use setPassword() to set password
-    void needKbiAnswers();  //!< Use setKbiAnswers() set answers
+    void needPassword();        //!< Use setPassword() to set password
+    void needKbiAnswers();      //!< Use setKbiAnswers() set answers
     void opened();
     void closed();
     void error();
 
     // Signals for LIBSSHQT child objects:
-    void doProcessState();  //!< All children must process their state
-    void doCleanup();       //!< All children must release libssh resources
+    void doProcessState();      //!< All children must process their state
+    void doCleanup();           //!< All children must release libssh resources
 
 private:
     void setState(State state);
