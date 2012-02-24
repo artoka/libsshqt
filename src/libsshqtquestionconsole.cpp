@@ -156,7 +156,6 @@ void LibsshQtQuestionConsole::handleAllAuthsFailed()
     LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
     LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
     LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
-    client_->disconnectFromHost();
 }
 
 void LibsshQtQuestionConsole::handleError()
