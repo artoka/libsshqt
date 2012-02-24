@@ -52,6 +52,8 @@ public:
     void setClient(LibsshQtClient *client);
     void setUnknownHostIcon(QIcon icon);
     void setAuthIcon(QIcon icon);
+    void setShowAuthsFailedDlg(bool enabled);
+    void setShowErrorDlg(bool enabled);
     State state() const;
 
     void done(int code);
@@ -64,11 +66,13 @@ private slots:
     void showNextKbiQuestion();
     void handleAuthFailed(int auth);
     void handleAllAuthsFailed();
+    void handleError();
 
 private:
     void setState(State state);
     void showHostDlg(QString message, QString info);
     void showAuthDlg(QString message, bool show_answer = false);
+    void showInfoDlg(QString message, QString title);
 
 private:
     QString                             debug_prefix_;
@@ -81,6 +85,9 @@ private:
     QList<LibsshQtClient::KbiQuestion>  kbi_questions_;
     QStringList                         kbi_answers_;
     int                                 kbi_pos_;
+
+    bool                                show_auths_failed_dlg_;
+    bool                                show_error_dlg_;
 };
 
 // Include <QDebug> before "libsshqt.h" if you want to use these operators

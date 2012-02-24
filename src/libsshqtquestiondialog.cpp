@@ -21,7 +21,9 @@ LibsshQtQuestionDialog::LibsshQtQuestionDialog(QWidget *parent) :
     ui_(new Ui::LibsshQtQuestionDialog),
     client_(0),
     state_(StateHidden),
-    kbi_pos_(0)
+    kbi_pos_(0),
+    show_auths_failed_dlg_(true),
+    show_error_dlg_(false)
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
 
@@ -70,6 +72,8 @@ void LibsshQtQuestionDialog::setClient(LibsshQtClient *client)
             this,    SLOT(handleNeedPassword()));
     connect(client_, SIGNAL(needKbiAnswers()),
             this,    SLOT(handleNeedKbiAnswers()));
+    connect(client_, SIGNAL(error()),
+            this,    SLOT(handleError()));
 
     connect(client_, SIGNAL(closed()), this, SLOT(hide()));
     connect(client_, SIGNAL(opened()), this, SLOT(hide()));
@@ -107,6 +111,23 @@ void LibsshQtQuestionDialog::setUnknownHostIcon(QIcon icon)
 void LibsshQtQuestionDialog::setAuthIcon(QIcon icon)
 {
     ui_->auth_icon_label->setPixmap(icon.pixmap(icon_size));
+}
+
+/*!
+    Should "Authentication failed" dialog be show when LibsshQtClient emits
+    allAuthsFailed signal.
+*/
+void LibsshQtQuestionDialog::setShowAuthsFailedDlg(bool enabled)
+{
+    show_auths_failed_dlg_ = enabled;
+}
+
+/*!
+    Should "Error" dialog be show when LibsshQtClient emits error signal.
+*/
+void LibsshQtQuestionDialog::setShowErrorDlg(bool enabled)
+{
+    show_error_dlg_ = enabled;
 }
 
 LibsshQtQuestionDialog::State LibsshQtQuestionDialog::state() const
@@ -274,26 +295,29 @@ void LibsshQtQuestionDialog::handleAuthFailed(int auth)
 
 void LibsshQtQuestionDialog::handleAllAuthsFailed()
 {
-    QString message = QString("%1 %2:%3")
-            .arg(tr("Could not authenticate to"))
-            .arg(client_->hostname())
-            .arg(client_->port());
-
-    QMessageBox *msg_box = new QMessageBox(parentWidget());
-    msg_box->setWindowModality(windowModality());
-    msg_box->setWindowTitle(tr("Authentication failed"));
-    msg_box->setText(message);
-    msg_box->setIcon(QMessageBox::Information);
-    msg_box->show();
-
-    connect(msg_box, SIGNAL(accepted()), msg_box, SLOT(deleteLater()));
-    connect(msg_box, SIGNAL(rejected()), msg_box, SLOT(deleteLater()));
+    if ( show_auths_failed_dlg_ ) {
+        QString message = QString("%1 %2:%3")
+                .arg(tr("Could not authenticate to"))
+                .arg(client_->hostname())
+                .arg(client_->port());
+        showInfoDlg(message, tr("Authentication failed"));
+    }
 
     LIBSSHQT_DEBUG("All authentication attempts have failed");
     LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
     LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
     LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
     client_->disconnectFromHost();
+}
+
+void LibsshQtQuestionDialog::handleError()
+{
+    if ( show_error_dlg_ ) {
+        QString message = QString("%1: %2")
+                .arg(tr("Error"))
+                .arg(client_->errorMessage());
+        showInfoDlg(message, tr("Error"));
+    }
 }
 
 void LibsshQtQuestionDialog::setState(State state)
@@ -344,6 +368,20 @@ void LibsshQtQuestionDialog::showAuthDlg(QString message, bool show_answer)
     setMinimumSize(size);
     setMaximumSize(size);
     show();
+}
+
+void LibsshQtQuestionDialog::showInfoDlg(QString message, QString title)
+{
+    QMessageBox *msg_box = new QMessageBox(parentWidget());
+    msg_box->setWindowModality(windowModality());
+    msg_box->setWindowTitle(title);
+    msg_box->setText(message);
+    msg_box->setIcon(QMessageBox::Information);
+
+    connect(msg_box, SIGNAL(accepted()), msg_box, SLOT(deleteLater()));
+    connect(msg_box, SIGNAL(rejected()), msg_box, SLOT(deleteLater()));
+
+    msg_box->show();
 }
 
 
