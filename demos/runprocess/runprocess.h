@@ -10,6 +10,7 @@ class RunProcess : public QObject
 
 public slots:
     void runProcess();
+    void handleProcessError();
 
 private:
     LibsshQtClient  *client;

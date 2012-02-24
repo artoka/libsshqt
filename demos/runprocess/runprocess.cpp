@@ -16,7 +16,7 @@ void RunProcess::runProcess()
                  <<"SSH_URL COMMAND";
         qDebug() << "Example:"
                  << qPrintable(args.at(0))
-                 << QString("ssh://user@hostname/")
+                 << QString("ssh://user@hostname:port/")
                  << QString("ls");
         qApp->quit();
         return;
@@ -32,4 +32,20 @@ void RunProcess::runProcess()
     new LibsshQtQuestionConsole(client);
 
     process = client->runCommand(args.at(2));
+
+    connect(client, SIGNAL(allAuthsFailed()), qApp, SLOT(quit()));
+    connect(client, SIGNAL(error()),          qApp, SLOT(quit()));
+    connect(client, SIGNAL(closed()),         qApp, SLOT(quit()));
+
+    connect(process, SIGNAL(closed()),        qApp, SLOT(quit()));
+    connect(process, SIGNAL(error()),         this, SLOT(handleProcessError()));
+}
+
+void RunProcess::handleProcessError()
+{
+    if ( ! process->isClientError()) {
+        qDebug() << "Process error:"
+                 << qPrintable(client->errorCodeAndMessage());
+        qApp->quit();
+    }
 }
