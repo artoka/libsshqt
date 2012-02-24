@@ -18,6 +18,7 @@ private slots:
     void handleNeedKbiAnswers();
     void handleAuthFailed(int auth);
     void handleAllAuthsFailed();
+    void handleError();
 
 private:
     QString readLine();

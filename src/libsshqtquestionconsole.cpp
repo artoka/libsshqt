@@ -32,6 +32,8 @@ LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :
             this,    SLOT(handleNeedPassword()));
     connect(client_, SIGNAL(needKbiAnswers()),
             this,    SLOT(handleNeedKbiAnswers()));
+    connect(client_, SIGNAL(error()),
+            this,    SLOT(handleError()));
 
     if ( client_->state() == LibsshQtClient::StateUnknownHost ) {
         handleUnknownHost();
@@ -155,6 +157,14 @@ void LibsshQtQuestionConsole::handleAllAuthsFailed()
     LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
     LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
     client_->disconnectFromHost();
+}
+
+void LibsshQtQuestionConsole::handleError()
+{
+    std::cout << qPrintable(tr("Error")) << ": "
+              << qPrintable(client_->errorMessage())
+              << std::endl;
+    std::cout.flush();
 }
 
 QString LibsshQtQuestionConsole::readLine()
