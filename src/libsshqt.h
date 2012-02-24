@@ -104,7 +104,7 @@ public:
     };
 
 
-    LibsshQtClient(QObject *parent = 0);
+    explicit LibsshQtClient(QObject *parent = 0);
     ~LibsshQtClient();
 
     static const char *enumToString(const LogVerbosity  value);
@@ -250,7 +250,7 @@ public:
         EofSent
     };
 
-    LibsshQtChannel(LibsshQtClient *parent);
+    explicit LibsshQtChannel(LibsshQtClient *parent);
     ~LibsshQtChannel();
     LibsshQtClient *client();
 
@@ -340,7 +340,7 @@ public:
         OutputToDevNull //!< All output is completely ignored
     };
 
-    LibsshQtProcess(LibsshQtClient *parent);
+    explicit LibsshQtProcess(LibsshQtClient *parent);
     ~LibsshQtProcess();
 
     static const char *enumToString(const State value);
@@ -406,7 +406,7 @@ class LibsshQtProcessStderr : public QIODevice
     friend class LibsshQtProcess;
 
 public:
-    LibsshQtProcessStderr(LibsshQtProcess *parent);
+    explicit LibsshQtProcessStderr(LibsshQtProcess *parent);
 
     qint64 bytesAvailable() const;
     qint64 bytesToWrite() const;
