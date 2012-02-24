@@ -12,14 +12,14 @@ class ProcessToFile : public QObject
 
 public slots:
     void processToFile();
+    void handleProcessError();
     void copydata();
-    void endcheck(qint64);
     void endcheck();
 
 private:
-    LibsshQtClient  *client_;
-    LibsshQtProcess *process_;
-    QFile           *file_;
+    LibsshQtClient  *client;
+    LibsshQtProcess *process;
+    QFile           *file;
 };
 
 #endif // PROCESSTOFILE_H

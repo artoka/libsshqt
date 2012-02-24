@@ -4,43 +4,68 @@
 #include <QUrl>
 
 #include "processtofile.h"
+#include "libsshqtquestionconsole.h"
 
 void ProcessToFile::processToFile()
 {
     QStringList args = qApp->arguments();
-    if ( args.count() < 3 ) {
-        qDebug() << "Usage:" << qPrintable(args.first())
-                 << "SSH_URL PASSWORD COMMAND OUTPUT_FILE";
-        qApp->exit(-1);
+
+    if ( args.count() != 4) {
+        qDebug() << "Usage:"
+                 << qPrintable(args.at(0))
+                 <<"SSH_URL COMMAND FILE";
+        qDebug() << "Example:"
+                 << qPrintable(args.at(0))
+                 << QString("ssh://user@hostname:port/")
+                 << QString("ls")
+                 << QString("ls-output");
+        qApp->quit();
         return;
     }
 
     QUrl url(args.at(1));
-    client_ = new LibsshQtClient(this);
-    client_->setUrl(url);
-    client_->usePasswordAuth(true, args.at(2));
-    client_->connectToHost();
+    client = new LibsshQtClient(this);
+    client->setUrl(url);
+    client->useDefaultAuths();
+    client->connectToHost();
 
-    process_ = client_->runCommand(args.at(3));
-    process_->setStdoutBehaviour(LibsshQtProcess::OutputManual);
-    connect(process_, SIGNAL(readyRead()), this, SLOT(copydata()));
-    connect(process_, SIGNAL(closed()),    this, SLOT(endcheck()));
+    process = client->runCommand(args.at(2));
+    process->setStdoutBehaviour(LibsshQtProcess::OutputManual);
 
-    file_ = new QFile(this);
-    file_->setFileName(args.at(4));
-    connect(file_, SIGNAL(bytesWritten(qint64)), this, SLOT(endcheck(qint64)));
+    file = new QFile(this);
+    file->setFileName(args.at(3));
+    connect(file, SIGNAL(bytesWritten(qint64)), this, SLOT(endcheck()));
 
-    if ( ! file_->open(QIODevice::ReadWrite | QIODevice::Truncate)) {
-        qDebug() << "Could not open file:" << file_->fileName();
+    if ( ! file->open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+        qDebug() << "Could not open file:" << file->fileName();
         qApp->exit(-1);
         return;
+    }
+
+    new LibsshQtQuestionConsole(client);
+
+    connect(client, SIGNAL(allAuthsFailed()), qApp, SLOT(quit()));
+    connect(client, SIGNAL(error()),          qApp, SLOT(quit()));
+    connect(client, SIGNAL(closed()),         qApp, SLOT(quit()));
+
+    connect(process, SIGNAL(readyRead()),     this, SLOT(copydata()));
+    connect(process, SIGNAL(closed()),        this, SLOT(endcheck()));
+    connect(process, SIGNAL(error()),         this, SLOT(handleProcessError()));
+}
+
+void ProcessToFile::handleProcessError()
+{
+    if ( ! process->isClientError()) {
+        qDebug() << "Process error:"
+                 << qPrintable(client->errorCodeAndMessage());
+        qApp->quit();
     }
 }
 
 void ProcessToFile::copydata()
 {
-    QByteArray data = process_->read(process_->bytesAvailable());
-    if ( file_->write(data) != data.size()) {
+    QByteArray data = process->read(process->bytesAvailable());
+    if ( file->write(data) != data.size()) {
         qDebug() << "Data write error";
         qApp->exit(-1);
     } else {
@@ -48,16 +73,11 @@ void ProcessToFile::copydata()
     }
 }
 
-void ProcessToFile::endcheck(qint64)
-{
-    endcheck();
-}
-
 void ProcessToFile::endcheck()
 {
-    if ( file_->bytesToWrite() == 0 &&
-         process_->bytesAvailable() == 0 ) {
-        file_->close();
+    if ( file->bytesToWrite() == 0 &&
+         process->bytesAvailable() == 0 ) {
+        file->close();
         qApp->exit();
     }
 }
