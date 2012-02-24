@@ -265,6 +265,7 @@ public:
     EofState eofState();
 
     // Error handling
+    bool isClientError() const;
     QString errorCodeAndMessage() const;
     QString errorMessage() const;
     int errorCode() const;

@@ -1157,7 +1157,21 @@ LibsshQtChannel::EofState LibsshQtChannel::eofState()
 }
 
 /*!
-  Get error code and message from libssh.
+    Did the error happen in LibsshQtClient instead of LibsshQtChannel?
+
+    LibsshQtChannel inherists errors from LibsshQtClient, so that if client
+    fails because of an error, then LibsshQtChannel will also fail.
+
+    You can use this function to check if the error actually happend in
+    LibsshQtClient instead of LibsshQtChannel.
+*/
+bool LibsshQtChannel::isClientError() const
+{
+    return client_->state() == LibsshQtClient::StateError;
+}
+
+/*!
+    Get error code and message from libssh.
 */
 QString LibsshQtChannel::errorCodeAndMessage() const
 {
@@ -1165,7 +1179,7 @@ QString LibsshQtChannel::errorCodeAndMessage() const
 }
 
 /*!
-  Get error message from libssh.
+    Get error message from libssh.
 */
 QString LibsshQtChannel::errorMessage() const
 {
@@ -1179,7 +1193,7 @@ QString LibsshQtChannel::errorMessage() const
 }
 
 /*!
-  Get error code from libssh.
+    Get error code from libssh.
 */
 int LibsshQtChannel::errorCode() const
 {
@@ -1216,7 +1230,7 @@ bool LibsshQtChannel::canReadLine() const
 }
 
 /*!
-  Set QIODevice to open state.
+    Set QIODevice to open state.
 */
 bool LibsshQtChannel::open(OpenMode mode)
 {
