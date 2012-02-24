@@ -5,40 +5,64 @@
 #include <QUrl>
 
 #include "filetoprocess.h"
+#include "libsshqtquestionconsole.h"
 
 void FileToProcess::fileToProcess()
 {
     QStringList args = qApp->arguments();
-    if ( args.count() < 3 ) {
-        qDebug() << "Usage:" << qPrintable(args.first())
-                 << "SSH_URL PASSWORD LOCAL_FILE REMOTE_COMMAND";
-        qApp->exit(-1);
+
+    if ( args.count() != 4) {
+        qDebug() << "Usage:"
+                 << qPrintable(args.at(0))
+                 <<"SSH_URL FILE COMMAND";
+        qDebug() << "Example:"
+                 << qPrintable(args.at(0))
+                 << QString("ssh://user@hostname:port/")
+                 << QString("input-file")
+                 << QString("cat");
+        qApp->quit();
         return;
     }
 
     QUrl url(args.at(1));
-    client_ = new LibsshQtClient(this);
-    client_->setUrl(url);
-    client_->usePasswordAuth(true, args.at(2));
-    client_->connectToHost();
+    client = new LibsshQtClient(this);
+    client->setUrl(url);
+    client->useDefaultAuths();
+    client->connectToHost();
 
-    process_ = client_->runCommand(args.at(4));
+    process = client->runCommand(args.at(3));
 
-    connect(process_, SIGNAL(opened()),             this, SLOT(sendData()));
-    connect(process_, SIGNAL(bytesWritten(qint64)), this, SLOT(sendData()));
-    connect(process_, SIGNAL(finished(int)),        this, SLOT(endCheck()));
+    file = new QFile(this);
+    file->setFileName(args.at(2));
 
-
-    file_ = new QFile(this);
-    file_->setFileName(args.at(3));
-    connect(file_, SIGNAL(readyRead()),           this, SLOT(sendData()));
-    connect(file_, SIGNAL(readChannelFinished()), this, SLOT(endCheck()));
-    //connect(file_, SIGNAL(bytesWritten(qint64)), this, SLOT(endcheck(qint64)));
-
-    if ( ! file_->open(QIODevice::ReadOnly)) {
-        qDebug() << "Could not open file:" << file_->fileName();
+    if ( ! file->open(QIODevice::ReadOnly)) {
+        qDebug() << "Could not open file:" << file->fileName();
         qApp->exit(-1);
         return;
+    }
+
+    new LibsshQtQuestionConsole(client);
+
+    connect(client, SIGNAL(allAuthsFailed()), qApp, SLOT(quit()));
+    connect(client, SIGNAL(error()),          qApp, SLOT(quit()));
+    connect(client, SIGNAL(closed()),         qApp, SLOT(quit()));
+
+    connect(process, SIGNAL(opened()),             this, SLOT(sendData()));
+    connect(process, SIGNAL(bytesWritten(qint64)), this, SLOT(sendData()));
+    connect(process, SIGNAL(finished(int)),        this, SLOT(endCheck()));
+    connect(process, SIGNAL(closed()),             qApp, SLOT(quit()));
+    connect(process, SIGNAL(error()),              this, SLOT(handleProcessError()));
+
+    connect(file, SIGNAL(readyRead()),           this, SLOT(sendData()));
+    connect(file, SIGNAL(readChannelFinished()), this, SLOT(endCheck()));
+}
+
+void FileToProcess::handleProcessError()
+{
+    if ( ! process->isClientError()) {
+        qDebug() << "Process error:"
+                 << qPrintable(client->errorCodeAndMessage());
+        qApp->quit();
     }
 }
 
@@ -46,13 +70,13 @@ void FileToProcess::sendData()
 {
     const int size = 1024 * 4;
 
-    if ( process_->isOpen() &&
-         process_->bytesToWrite() <= size &&
-         file_->isOpen() &&
-         file_->atEnd() == false ) {
+    if ( process->isOpen() &&
+         process->bytesToWrite() <= size &&
+         file->isOpen() &&
+         file->atEnd() == false ) {
 
-        QByteArray data = file_->read(size);
-        if ( ! process_->write(data)) {
+        QByteArray data = file->read(size);
+        if ( ! process->write(data)) {
             qDebug() << "Could not write data to process";
             qApp->exit(-1);
         } else {
@@ -60,21 +84,14 @@ void FileToProcess::sendData()
         }
     }
 
-    if ( file_->atEnd()) {
-        process_->sendEof();
+    if ( file->atEnd()) {
+        process->sendEof();
     }
 }
 
-/*
-void FileToProcess::endCheck(qint64)
-{
-    endCheck();
-}
-*/
-
 void FileToProcess::endCheck()
 {
-    if ( ! process_->isOpen()) {
+    if ( ! process->isOpen()) {
         qApp->exit();
     }
 }
