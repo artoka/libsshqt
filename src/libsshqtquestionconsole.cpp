@@ -147,10 +147,10 @@ void LibsshQtQuestionConsole::handleAuthFailed(int auth)
 
 void LibsshQtQuestionConsole::handleAllAuthsFailed()
 {
-    std::cout << qPrintable(tr("Could not authenticate to")) << " "
+    std::cerr << qPrintable(tr("Could not authenticate to")) << " "
               << qPrintable(client_->hostname()) << ":"
               << client_->port() << std::endl;
-    std::cout.flush();
+    std::cerr.flush();
 
     LIBSSHQT_DEBUG("All authentication attempts have failed");
     LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
@@ -160,10 +160,10 @@ void LibsshQtQuestionConsole::handleAllAuthsFailed()
 
 void LibsshQtQuestionConsole::handleError()
 {
-    std::cout << qPrintable(tr("Error")) << ": "
+    std::cerr << qPrintable(tr("Error")) << ": "
               << qPrintable(client_->errorMessage())
               << std::endl;
-    std::cout.flush();
+    std::cerr.flush();
 }
 
 QString LibsshQtQuestionConsole::readLine()
