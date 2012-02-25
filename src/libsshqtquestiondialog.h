@@ -11,19 +11,27 @@ namespace Ui {
 
 /*!
 
-    LibsshQtQuestionDialog - Question dialog for LibsshQtClient
+    LibsshQtQuestionDialog - Question and message dialog for LibsshQtClient
 
     LibsshQtQuestionDialog implements the standard question dialogs needed while
     connecting to a SSH server. Specifically LibsshQtQuestionDialog handles
-    unknownHost, needPassword and needKbiAnswers signals sent by LibsshQtClient
-    and displays the appropriate dialog to the user.
+    unknownHost, needPassword and needKbiAnswers signals emitted by
+    LibsshQtClient and displays the appropriate dialog to the user.
 
-    If LibsshQtClient sends authFailed signal, then LibsshQtQuestionDialog will
-    check what authentication method was attempted, re-enable it, and then
-    re-display the authentication dialog, so that the user can attempt to write
-    the password correctly this time.
+    If the user types the wrong password then LibsshQtQuestionDialog re-enables
+    the attempted authentication method and re-displays the authentication
+    dialog. Specifically If LibsshQtClient emits authFailed signal and the
+    failed authentication type is either UseAuthPassword or UseAuthKbi and if
+    the server actually supports the attempted method, then
+    LibsshQtQuestionDialog will re-enable the failed authentication method.
 
-    If user cancels the dialog, LibsshQtClient::disconnectFromHost() is called.
+    If LibsshQtClient emits allAuthsFailed or error signal then
+    LibsshQtQuestionDialog displays either "Authentication Failed" or "Error"
+    messagebox. If you want to display these messages yourself, you can disable
+    these messageboxes with setShowAuthsFailedDlg() and setShowErrorDlg()
+    functions.
+
+    If user cancels a dialog, LibsshQtClient::disconnectFromHost() is called.
 
     Use setClient() function to set which LibsshQtClient object is handled by
     LibsshQtQuestionDialog.
