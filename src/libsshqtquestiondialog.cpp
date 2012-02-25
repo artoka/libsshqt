@@ -295,6 +295,10 @@ void LibsshQtQuestionDialog::handleAuthFailed(int auth)
 
 void LibsshQtQuestionDialog::handleAllAuthsFailed()
 {
+    LIBSSHQT_DEBUG("All authentication attempts have failed");
+    LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
+    LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
+
     if ( show_auths_failed_dlg_ ) {
         QString message = QString("%1 %2:%3")
                 .arg(tr("Could not authenticate to"))
@@ -302,11 +306,6 @@ void LibsshQtQuestionDialog::handleAllAuthsFailed()
                 .arg(client_->port());
         showInfoDlg(message, tr("Authentication failed"));
     }
-
-    LIBSSHQT_DEBUG("All authentication attempts have failed");
-    LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
-    LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
-    LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
 }
 
 void LibsshQtQuestionDialog::handleError()

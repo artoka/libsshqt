@@ -147,15 +147,14 @@ void LibsshQtQuestionConsole::handleAuthFailed(int auth)
 
 void LibsshQtQuestionConsole::handleAllAuthsFailed()
 {
+    LIBSSHQT_DEBUG("All authentication attempts have failed");
+    LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
+    LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
+
     std::cerr << qPrintable(tr("Could not authenticate to")) << " "
               << qPrintable(client_->hostname()) << ":"
               << client_->port() << std::endl;
     std::cerr.flush();
-
-    LIBSSHQT_DEBUG("All authentication attempts have failed");
-    LIBSSHQT_DEBUG("Supported auth:" << client_->supportedAuthMethods());
-    LIBSSHQT_DEBUG("Failed auths:" << client_->failedAuths());
-    LIBSSHQT_DEBUG("Closing connection:" << LIBSSHQT_HEXNAME(client_));
 }
 
 void LibsshQtQuestionConsole::handleError()
