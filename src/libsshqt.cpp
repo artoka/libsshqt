@@ -203,6 +203,8 @@ void LibsshQtClient::setDebug(bool enabled)
         debug_output_ = false;
         setVerbosity(LogDisable);
     }
+
+    emit debugChanged();
 }
 
 void LibsshQtClient::setUsername(QString username)
@@ -232,7 +234,6 @@ void LibsshQtClient::setVerbosity(LogVerbosity loglevel)
     int tmp = loglevel;
     LIBSSHQT_SET_OPT(SSH_OPTIONS_LOG_VERBOSITY, &tmp, loglevel);
 }
-
 
 bool LibsshQtClient::isDebugEnabled() const
 {
@@ -1058,24 +1059,22 @@ void LibsshQtClient::handleAuthResponse(int         rc,
 
 
 
-
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // LibsshQtChannel
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 LibsshQtChannel::LibsshQtChannel(LibsshQtClient *parent) :
     QIODevice(parent),
+    debug_prefix_(LibsshQt::debugPrefix(this)),
+    debug_output_(parent->isDebugEnabled()),
     client_(parent),
-    debug_output_(false),
     channel_(0),
     eof_state_(EofNotSent),
     buffer_size_(1024 * 16),
     write_size_(1024 * 16)
 {
-    debug_prefix_ = LibsshQt::debugPrefix(this);
-    if ( client_->isDebugEnabled()) {
-        debug_output_ = true;
-    }
+    connect(client_, SIGNAL(debugChanged()),
+            this,    SLOT(handleDebugChanged()));
 }
 
 LibsshQtChannel::~LibsshQtChannel()
@@ -1364,6 +1363,11 @@ qint64 LibsshQtChannel::writeData(const char *data, qint64 len)
                           eof_state_);
         return 0;
     }
+}
+
+void LibsshQtChannel::handleDebugChanged()
+{
+    debug_output_ = client_->isDebugEnabled();
 }
 
 

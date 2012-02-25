@@ -62,6 +62,8 @@ void LibsshQtQuestionDialog::setClient(LibsshQtClient *client)
     LIBSSHQT_DEBUG("Client set to:" <<
                    qPrintable(LibsshQt::hexAndName(client)));
 
+    connect(client_, SIGNAL(debugChanged()),
+            this,    SLOT(handleDebugChanged()));
     connect(client_, SIGNAL(unknownHost()),
             this,    SLOT(handleUnknownHost()));
     connect(client_, SIGNAL(authFailed(int)),
@@ -205,6 +207,11 @@ void LibsshQtQuestionDialog::setVisible(bool visible)
     }
 }
 
+void LibsshQtQuestionDialog::handleDebugChanged()
+{
+    debug_output_ = client_->isDebugEnabled();
+}
+
 void LibsshQtQuestionDialog::handleUnknownHost()
 {
     Q_ASSERT( state_ == StateHidden );
@@ -338,7 +345,6 @@ void LibsshQtQuestionDialog::showHostDlg(QString message, QString info)
     ui_->host_info_label->setText(info);
     ui_->button_box->setStandardButtons(QDialogButtonBox::Yes |
                                         QDialogButtonBox::No);
-
 
     QSize size = sizeHint().boundedTo(max_size).expandedTo(min_size);
     setMinimumSize(size);

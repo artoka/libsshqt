@@ -39,6 +39,7 @@ public:
     explicit LibsshQtQuestionConsole(LibsshQtClient *parent);
 
 private slots:
+    void handleDebugChanged();
     void handleUnknownHost();
     void handleNeedPassword();
     void handleNeedKbiAnswers();

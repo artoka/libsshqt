@@ -68,6 +68,7 @@ public:
     void setVisible(bool visible);
 
 private slots:
+    void handleDebugChanged();
     void handleUnknownHost();
     void handleNeedPassword();
     void handleNeedKbiAnswers();

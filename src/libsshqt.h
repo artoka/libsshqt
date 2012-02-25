@@ -175,6 +175,7 @@ public:
     void enableWritableNotifier();
 
 signals:
+    void debugChanged();
     void unknownHost();
     void chooseAuth();
     void needPassword();        //!< Use setPassword() to set password
@@ -292,18 +293,21 @@ public slots:
     virtual void queueCheckIo() = 0;
     virtual void processState() = 0;
 
+private slots:
+    void handleDebugChanged();
+
 protected:
+    QString         debug_prefix_;
+    bool            debug_output_;
+
     LibsshQtClient *client_;
-    QString     debug_prefix_;
-    bool        debug_output_;
+    ssh_channel     channel_;
+    EofState        eof_state_;
 
-    ssh_channel channel_;
-    EofState    eof_state_;
-
-    int         buffer_size_;
-    int         write_size_;
-    QByteArray  read_buffer_;
-    QByteArray  write_buffer_;
+    int             buffer_size_;
+    int             write_size_;
+    QByteArray      read_buffer_;
+    QByteArray      write_buffer_;
 };
 
 

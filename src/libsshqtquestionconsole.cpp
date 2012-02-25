@@ -24,6 +24,8 @@ LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :
 {
     LIBSSHQT_DEBUG("Parent client is:" << LIBSSHQT_HEXNAME(parent));
 
+    connect(client_, SIGNAL(debugChanged()),
+            this,    SLOT(handleDebugChanged()));
     connect(client_, SIGNAL(unknownHost()),
             this,    SLOT(handleUnknownHost()));
     connect(client_, SIGNAL(authFailed(int)),
@@ -47,6 +49,11 @@ LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :
     } else if ( client_->state() == LibsshQtClient::StateAuthAllFailed ) {
         handleAllAuthsFailed();
     }
+}
+
+void LibsshQtQuestionConsole::handleDebugChanged()
+{
+    debug_output_ = client_->isDebugEnabled();
 }
 
 void LibsshQtQuestionConsole::handleUnknownHost()
