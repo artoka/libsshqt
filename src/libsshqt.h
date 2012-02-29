@@ -36,6 +36,7 @@ public:
     {
         StateClosed,
         StateClosing,
+        StateInit,
         StateConnecting,
         StateIsKnown,
         StateUnknownHost,
@@ -197,6 +198,10 @@ private:
     void destroyNotifiers();
     void processState();
     void handleAuthResponse(int rc, const char *func, UseAuthFlag auth);
+    bool setLibsshOption(enum ssh_options_e type,
+                         QString type_debug,
+                         const void *value,
+                         QString value_debug);
 
 private slots:
     void handleSocketReadable(int socket);
@@ -213,6 +218,7 @@ private:
     bool            process_state_running_;
     bool            enable_writable_nofifier_;
 
+    LogVerbosity    log_verbosity_;
     quint16         port_;
     QString         hostname_;
     QString         username_;

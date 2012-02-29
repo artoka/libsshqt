@@ -11,26 +11,6 @@
 
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Misc
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
-#define LIBSSHQT_SET_OPT(_opt_, _val_, _log_val_) \
-    if ( state_ != StateClosed ) { \
-        LIBSSHQT_CRITICAL("Cannot set option" <<  #_opt_ << \
-                          "to" << _log_val_ << \
-                          "because current state is not StateClosed") \
-    } \
-    if ( debug_output_ ) { \
-        LIBSSHQT_DEBUG("Setting option" << #_opt_ << "to" << _log_val_) \
-    } \
-    if ( ssh_options_set(session_, _opt_, _val_) != 0 ) { \
-        LIBSSHQT_CRITICAL("Failed to set option " <<  #_opt_ << \
-                          "to" << _log_val_)\
-    }
-
-
-
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // LibsshQtSession
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -57,12 +37,6 @@ LibsshQtClient::LibsshQtClient(QObject *parent) :
     timer_.setSingleShot(true);
     timer_.setInterval(0);
     connect(&timer_, SIGNAL(timeout()), this, SLOT(processStateGuard()));
-
-    session_ = ssh_new();
-    if ( ! session_ ) {
-        LIBSSHQT_FATAL("Could not create SSH session");
-    }
-    ssh_set_blocking(session_, 0);
 
     if (debug_output_) {
         setVerbosity(LogProtocol);
@@ -209,21 +183,35 @@ void LibsshQtClient::setDebug(bool enabled)
 
 void LibsshQtClient::setUsername(QString username)
 {
-    username_ = username;
-    LIBSSHQT_SET_OPT(SSH_OPTIONS_USER, qPrintable(username), username)
+    Q_ASSERT( state_ == StateClosed );
+
+    if ( state_ == StateClosed ) {
+        username_ = username;
+    } else {
+        LIBSSHQT_CRITICAL("Cannot set AAAAAAA when state is" << state_);
+    }
 }
 
 void LibsshQtClient::setHostname(QString hostname)
 {
-    hostname_ = hostname;
-    LIBSSHQT_SET_OPT(SSH_OPTIONS_HOST, qPrintable(hostname), hostname)
+    Q_ASSERT( state_ == StateClosed );
+
+    if ( state_ == StateClosed ) {
+        hostname_ = hostname;
+    } else {
+        LIBSSHQT_CRITICAL("Cannot set AAAAAAA when state is" << state_);
+    }
 }
 
 void LibsshQtClient::setPort(quint16 port)
 {
-    port_ = port;
-    unsigned int tmp = port;
-    LIBSSHQT_SET_OPT(SSH_OPTIONS_PORT, &tmp, port)
+    Q_ASSERT( state_ == StateClosed );
+
+    if ( state_ == StateClosed ) {
+        port_ = port;
+    } else {
+        LIBSSHQT_CRITICAL("Cannot set AAAAAAA when state is" << state_);
+    }
 }
 
 /*!
@@ -231,8 +219,12 @@ void LibsshQtClient::setPort(quint16 port)
 */
 void LibsshQtClient::setVerbosity(LogVerbosity loglevel)
 {
-    int tmp = loglevel;
-    LIBSSHQT_SET_OPT(SSH_OPTIONS_LOG_VERBOSITY, &tmp, loglevel);
+    log_verbosity_ = loglevel;
+    if ( session_ ) {
+        int tmp_verbosity = log_verbosity_;
+        setLibsshOption(SSH_OPTIONS_LOG_VERBOSITY, "SSH_OPTIONS_LOG_VERBOSITY",
+                        &tmp_verbosity, enumToString(log_verbosity_));
+    }
 }
 
 bool LibsshQtClient::isDebugEnabled() const
@@ -301,7 +293,7 @@ bool LibsshQtClient::isOpen()
 void LibsshQtClient::connectToHost()
 {
     if ( state_ == StateClosed ) {
-        setState(StateConnecting);
+        setState(StateInit);
         timer_.start();
     }
 }
@@ -346,7 +338,11 @@ void LibsshQtClient::disconnectFromHost()
         emit doCleanup();
 
         destroyNotifiers();
+
         ssh_disconnect(session_);
+        ssh_free(session_);
+        session_ = 0;
+
         setState(StateClosed);
     }
 }
@@ -672,6 +668,7 @@ void LibsshQtClient::setState(State state)
     switch ( state_ ) {
     case StateClosed:           emit closed();                  break;
     case StateClosing:                                          break;
+    case StateInit:                                             break;
     case StateConnecting:                                       break;
     case StateIsKnown:                                          break;
     case StateUnknownHost:      emit unknownHost();             break;
@@ -704,6 +701,7 @@ void LibsshQtClient::tryNextAuth()
     switch ( state_ ) {
     case StateClosed:
     case StateClosing:
+    case StateInit:
     case StateConnecting:
     case StateIsKnown:
     case StateUnknownHost:
@@ -868,6 +866,40 @@ void LibsshQtClient::processState()
     case StateAuthAllFailed:
     case StateError:
         return;
+
+    case StateInit:
+    {
+        Q_ASSERT( session_ == 0 );
+
+        session_ = ssh_new();
+        if ( ! session_ ) {
+            LIBSSHQT_FATAL("Could not create SSH session");
+        }
+        ssh_set_blocking(session_, 0);
+
+        unsigned int tmp_port = port_;
+        int tmp_verbosity = log_verbosity_;
+
+        if (setLibsshOption(SSH_OPTIONS_LOG_VERBOSITY,
+                            "SSH_OPTIONS_LOG_VERBOSITY",
+                            &tmp_verbosity, enumToString(log_verbosity_)) &&
+
+            setLibsshOption(SSH_OPTIONS_USER, "SSH_OPTIONS_USER",
+                            qPrintable(username_), username_) &&
+
+            setLibsshOption(SSH_OPTIONS_HOST, "SSH_OPTIONS_HOST",
+                            qPrintable(hostname_), hostname_) &&
+
+            setLibsshOption(SSH_OPTIONS_PORT, "SSH_OPTIONS_PORT",
+                            &tmp_port, QString::number(port_)))
+        {
+            setState(StateConnecting);
+            timer_.start();
+            return;
+        }
+
+        return;
+    } break;
 
     case StateConnecting:
     {
@@ -1055,6 +1087,30 @@ void LibsshQtClient::handleAuthResponse(int         rc,
     }
 
     Q_ASSERT_X(false, __func__, "Case was not handled properly");
+}
+
+bool LibsshQtClient::setLibsshOption(enum ssh_options_e type,
+                                     QString type_debug,
+                                     const void *value,
+                                     QString value_debug)
+{
+    Q_ASSERT( session_ != 0 );
+
+    if ( state_ == StateError ) {
+        LIBSSHQT_CRITICAL("Cannot set option" << type_debug <<
+                          "to" << value_debug << "because state is" << state_);
+        return false;
+    }
+
+    LIBSSHQT_DEBUG("Setting option" << type_debug << "to" << value_debug);
+    if ( ssh_options_set(session_, type, value) != 0 ) {
+        LIBSSHQT_CRITICAL("Failed to set option " << type_debug <<
+                          "to" << value_debug);
+        setState(StateError);
+        return false;
+    }
+
+    return true;
 }
 
 
