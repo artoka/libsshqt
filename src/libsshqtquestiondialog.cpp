@@ -23,7 +23,7 @@ LibsshQtQuestionDialog::LibsshQtQuestionDialog(QWidget *parent) :
     state_(StateHidden),
     kbi_pos_(0),
     show_auths_failed_dlg_(true),
-    show_error_dlg_(false)
+    show_error_dlg_(true)
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
 
