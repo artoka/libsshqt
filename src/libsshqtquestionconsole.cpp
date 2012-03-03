@@ -13,7 +13,7 @@
 #include "libsshqtquestionconsole.h"
 
 #include "libsshqtdebug.h"
-#include "libsshqt.h"
+#include "libsshqtclient.h"
 
 
 LibsshQtQuestionConsole::LibsshQtQuestionConsole(LibsshQtClient *parent) :

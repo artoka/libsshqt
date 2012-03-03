@@ -2,8 +2,7 @@
 #define LIBSSHQTQUESTIONDIALOG_H
 
 #include <QDialog>
-
-#include "libsshqt.h"
+#include "libsshqtclient.h"
 
 namespace Ui {
     class LibsshQtQuestionDialog;

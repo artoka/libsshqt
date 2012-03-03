@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QStringList>
 
-#include "libsshqt.h"
+#include "libsshqtclient.h"
 
 /*!
 

@@ -9,7 +9,6 @@
 #include "ui_libsshqtquestiondialog.h"
 
 #include "libsshqtdebug.h"
-#include "libsshqt.h"
 
 static const QSize icon_size(64, 64);
 static const QSize min_size(450, 150);
