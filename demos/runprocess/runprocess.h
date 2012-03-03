@@ -2,7 +2,8 @@
 #define RUNPROCESS_H
 
 #include <QObject>
-#include "libsshqt.h"
+#include "libsshqtclient.h"
+#include "libsshqtprocess.h"
 
 class RunProcess : public QObject
 {

@@ -3,7 +3,8 @@
 
 #include <QMainWindow>
 
-#include "libsshqt.h"
+#include "libsshqtclient.h"
+#include "libsshqtprocess.h"
 #include "libsshqtquestiondialog.h"
 
 namespace Ui {

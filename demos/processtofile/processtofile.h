@@ -4,7 +4,8 @@
 #include <QObject>
 #include <QFile>
 
-#include "libsshqt.h"
+#include "libsshqtclient.h"
+#include "libsshqtprocess.h"
 
 class ProcessToFile : public QObject
 {
