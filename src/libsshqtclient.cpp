@@ -605,7 +605,10 @@ bool LibsshQtClient::markCurrentHostKnown()
 */
 QString LibsshQtClient::errorCodeAndMessage() const
 {
-    return QString("%1: %2").arg(errorCode()).arg(errorMessage());
+    return QString("%1 (%2 %3)")
+            .arg(errorMessage())
+            .arg(tr("libssh error code"))
+            .arg(errorCode());
 }
 
 /*!

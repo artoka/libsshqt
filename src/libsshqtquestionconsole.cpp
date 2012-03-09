@@ -167,7 +167,7 @@ void LibsshQtQuestionConsole::handleAllAuthsFailed()
 void LibsshQtQuestionConsole::handleError()
 {
     std::cerr << qPrintable(tr("Error")) << ": "
-              << qPrintable(client_->errorMessage())
+              << qPrintable(client_->errorCodeAndMessage())
               << std::endl;
     std::cerr.flush();
 }

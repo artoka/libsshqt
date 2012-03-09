@@ -319,7 +319,7 @@ void LibsshQtQuestionDialog::handleError()
     if ( show_error_dlg_ ) {
         QString message = QString("%1: %2")
                 .arg(tr("Error"))
-                .arg(client_->errorMessage());
+                .arg(client_->errorCodeAndMessage());
         showInfoDlg(message, tr("Error"));
     }
 }
