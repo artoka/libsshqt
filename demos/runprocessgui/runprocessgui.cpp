@@ -104,11 +104,6 @@ void RunProcessGui::handleProcessOpened()
 void RunProcessGui::handleProcessClosed()
 {
     statusBar()->showMessage("Process stopped");
-
-    // Process is closed, but there might still be data in
-    // LibsshQtProcess buffers.
-    readProcessStdout();
-    readProcessStderr();
 }
 
 void RunProcessGui::handleProcessError()
