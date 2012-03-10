@@ -33,13 +33,23 @@ LibsshQtChannel::LibsshQtChannel(bool            is_stderr,
             this,    SLOT(handleDebugChanged()));
 }
 
+/*!
+    Is the channel at end?
+
+    @par Channel is at end if
+    - IODevice is closed
+    - Read buffer is empty and more data won't be forthcoming
+*/
 bool LibsshQtChannel::atEnd() const
 {
+    // Channel is NULL
+    // IODevice is closed
+    // Buffer is empty AND ( Channel closed OR Channel is EOF )
     return channel_ == 0 ||
             isOpen() == false ||
             ( read_buffer_.isEmpty() &&
-              ssh_channel_is_open(channel_) &&
-              ssh_channel_poll(channel_, is_stderr_) == SSH_EOF );
+              ( ssh_channel_is_open(channel_) == false ||
+                ssh_channel_poll(channel_, is_stderr_) == SSH_EOF ));
 }
 
 qint64 LibsshQtChannel::bytesAvailable() const
@@ -57,12 +67,27 @@ bool LibsshQtChannel::isSequential()
     return true;
 }
 
+/*!
+    Is a line available for reading?
+
+    @par A line available for reading if:
+    - Newline is found in read buffer
+    - Read buffer is full
+    - Data is available in read buffer and more data won't be forthcoming
+*/
 bool LibsshQtChannel::canReadLine() const
 {
+    // Newline in buffer
+    // Buffer is full
+    // Data in buffer and (closed or Channel NULL or EOF )
     return QIODevice::canReadLine() ||
            read_buffer_.contains('\n') ||
            read_buffer_.size() >= buffer_size_ ||
-           ( atEnd() == true && read_buffer_.isEmpty() == false );
+            ( read_buffer_.isEmpty() == false &&
+              ( isOpen() == false ||
+                channel_ == 0 ||
+                ( ssh_channel_is_open(channel_) &&
+                  ssh_channel_poll(channel_, is_stderr_) == SSH_EOF )));
 }
 
 qint64 LibsshQtChannel::readData(char *data, qint64 maxlen)
