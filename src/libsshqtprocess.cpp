@@ -16,13 +16,12 @@
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 LibsshQtProcess::LibsshQtProcess(LibsshQtClient *parent) :
-    LibsshQtChannel(parent),
+    LibsshQtChannel(false, parent, parent),
     state_(StateClosed),
     exit_code_(-1),
     stderr_(new LibsshQtProcessStderr(this))
 {
     debug_prefix_ = LibsshQt::debugPrefix(this);
-    stderr_->err_buffer_ = &stderr_buffer_;
 
     LIBSSHQT_DEBUG("Constructor");
 
@@ -64,7 +63,7 @@ void LibsshQtProcess::setCommand(QString command)
     LIBSSHQT_DEBUG("Setting command to" << command);
 }
 
-QString LibsshQtProcess::command()
+QString LibsshQtProcess::command() const
 {
     return command_;
 }
@@ -119,6 +118,40 @@ LibsshQtProcessStderr *LibsshQtProcess::stderr()
     return stderr_;
 }
 
+LibsshQtProcess::State LibsshQtProcess::state() const
+{
+    return state_;
+}
+
+/*!
+    Same as openChannel()
+*/
+bool LibsshQtProcess::open(OpenMode ignored)
+{
+    Q_UNUSED( ignored );
+    openChannel();
+    return true;
+}
+
+/*!
+    If the process has been successfully opened this function calls sendEof()
+    otherwise closeChannel() is called.
+
+    In either case you should wait for closed signal before deletin the
+    LibsshQtProcess.
+*/
+void LibsshQtProcess::close()
+{
+    if ( state_ == StateOpen ) {
+        sendEof();
+    } else {
+        closeChannel();
+    }
+}
+
+/*!
+    Open SSH channel and start the process.
+*/
 void LibsshQtProcess::openChannel()
 {
     if ( state_ == StateClosed ) {
@@ -127,6 +160,10 @@ void LibsshQtProcess::openChannel()
     }
 }
 
+/*!
+    This function closes the SSH channel immediadly and prepares the object for
+    reuse, any possible data in buffers is discarded.
+*/
 void LibsshQtProcess::closeChannel()
 {
     if ( state_ != StateClosed &&
@@ -139,15 +176,25 @@ void LibsshQtProcess::closeChannel()
         handleStdoutOutput();
         handleStderrOutput();
 
-        close();
-        stderr_->close();
+        if ( channel_ ) {
+            if ( ssh_channel_is_open(channel_) != 0 ) {
+                ssh_channel_close(channel_);
+            }
+
+            ssh_channel_free(channel_);
+            channel_ = 0;
+        }
+
+        QIODevice::close();
+        reinterpret_cast< QIODevice* >( stderr_ )->close();
+
+        read_buffer_.clear();
+        write_buffer_.clear();
+        stderr_->read_buffer_.clear();
+        stderr_->write_buffer_.clear();
+
         setState(StateClosed);
     }
-}
-
-LibsshQtProcess::State LibsshQtProcess::state() const
-{
-    return state_;
 }
 
 void LibsshQtProcess::setState(State state)
@@ -172,6 +219,11 @@ void LibsshQtProcess::setState(State state)
     }
 }
 
+void LibsshQtProcess::queueCheckIo()
+{
+    timer_.start();
+}
+
 void LibsshQtProcess::processState()
 {
     switch ( state_ ) {
@@ -194,8 +246,13 @@ void LibsshQtProcess::processState()
     case StateOpening:
     {
         if ( ! channel_ ) {
-            channel_ = ssh_channel_new(client_->sshSession());
-            if ( ! channel_ ) {
+            ssh_channel channel = ssh_channel_new(client_->sshSession());
+
+            if ( channel ) {
+                channel_ = channel;
+                stderr_->channel_ = channel;
+
+            } else {
                 LIBSSHQT_FATAL("Could not create SSH channel");
             }
         }
@@ -239,7 +296,11 @@ void LibsshQtProcess::processState()
             return;
 
         case SSH_OK:
-            LibsshQtChannel::open();
+            // Set Unbuffered to disable QIODevice buffers.
+            if ( ! QIODevice::open( ReadWrite | Unbuffered )) {
+                LIBSSHQT_FATAL("QIODevice::open() failed");
+            }
+
             stderr_->open();
             setState(StateOpen);
             timer_.start();
@@ -255,6 +316,7 @@ void LibsshQtProcess::processState()
     case StateOpen:
     {
         checkIo();
+        stderr_->checkIo();
 
         if ( state_ == StateOpen &&
              ssh_channel_poll(channel_, false) == SSH_EOF &&
@@ -266,7 +328,8 @@ void LibsshQtProcess::processState()
             LIBSSHQT_DEBUG("Command exit code:"     << exit_code_);
             LIBSSHQT_DEBUG("Data in read buffer:"   << read_buffer_.size());
             LIBSSHQT_DEBUG("Data in write buffer:"  << write_buffer_.size());
-            LIBSSHQT_DEBUG("Data in stderr buffer:" << stderr_buffer_.size());
+            LIBSSHQT_DEBUG("Data in stderr buffer:" <<
+                           stderr_->read_buffer_.size());
 
             closeChannel();
             emit finished(exit_code_);
@@ -279,47 +342,6 @@ void LibsshQtProcess::processState()
     } // End switch
 
     Q_ASSERT_X(false, __func__, "Case was not handled properly");
-}
-
-void LibsshQtProcess::checkIo()
-{
-    LibsshQtChannel::checkIo();
-    if ( ! channel_ ) return;
-
-    // Read stderr data from channel
-    int read = 0;
-    int read_size = ssh_channel_poll(channel_, true);
-    if ( read_size > 0 ) {
-
-        // Dont read more than buffer_size_ specifies.
-        int max_read = buffer_size_ - stderr_buffer_.size();
-        if ( read_size > max_read ) {
-            read_size = max_read;
-        }
-
-        if ( read_size > 0 ) {
-            char data[read_size];
-            read = ssh_channel_read_nonblocking(channel_, data, read_size, true);
-
-
-            stderr_buffer_.reserve(buffer_size_);
-            stderr_buffer_.append(data, read_size);
-
-            LIBSSHQT_DEBUG("stderr: Read:" << read <<
-                           " Data in buffer:" << stderr_buffer_.size() <<
-                           " Readable from channel:" <<
-                           ssh_channel_poll(channel_, true));
-
-            if ( read > 0 ) {
-                emit stderr_->readyRead();
-            }
-        }
-    }
-}
-
-void LibsshQtProcess::queueCheckIo()
-{
-    timer_.start();
 }
 
 void LibsshQtProcess::handleClientError()
@@ -380,72 +402,32 @@ void LibsshQtProcess::handleOutput(OutputBehaviour &behaviour,
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 LibsshQtProcessStderr::LibsshQtProcessStderr(LibsshQtProcess *parent) :
-    QIODevice(parent),
-    parent_(parent),
-    err_buffer_(0)
+    LibsshQtChannel(true, parent->client(), parent)
 {
-}
-
-qint64 LibsshQtProcessStderr::bytesAvailable() const
-{
-    return err_buffer_->size() + QIODevice::bytesAvailable();
-}
-
-qint64 LibsshQtProcessStderr::bytesToWrite() const
-{
-    return 0;
-}
-
-bool LibsshQtProcessStderr::isSequential()
-{
-    return true;
-}
-
-bool LibsshQtProcessStderr::canReadLine() const
-{
-    return QIODevice::canReadLine() ||
-           err_buffer_->contains('\n') ||
-           err_buffer_->size() >= parent_->buffer_size_ ||
-           ( isOpen() == false && atEnd() == false );
-}
-
-bool LibsshQtProcessStderr::open(OpenMode mode)
-{
-    Q_ASSERT( mode == QIODevice::ReadOnly );
-    Q_UNUSED( mode );
-
-    // Set Unbuffered to disable QIODevice buffers.
-    bool ret = QIODevice::open(QIODevice::ReadOnly | QIODevice::Unbuffered);
-    Q_ASSERT(ret);
-    return ret;
+    debug_prefix_ = LibsshQt::debugPrefix(this);
 }
 
 void LibsshQtProcessStderr::close()
 {
-    QIODevice::close();
+    reinterpret_cast<LibsshQtProcess *>(parent())->close();
 }
 
-qint64 LibsshQtProcessStderr::readData(char *data, qint64 maxlen)
+bool LibsshQtProcessStderr::open(OpenMode ignored)
 {
-    Q_ASSERT(err_buffer_);
-    parent_->queueCheckIo();
+    Q_UNUSED( ignored );
 
-    qint64 copy_len  = maxlen;
-    int    data_size = err_buffer_->size();
-
-    if ( copy_len > data_size ) {
-        copy_len = data_size;
+    // Set Unbuffered to disable QIODevice buffers.
+     if ( ! QIODevice::open( ReadWrite | Unbuffered )) {
+        LIBSSHQT_FATAL("QIODevice::open() failed");
     }
-
-    memcpy(data, err_buffer_->constData(), copy_len);
-    err_buffer_->remove(0, copy_len);
-    return copy_len;
+    return true;
 }
 
-qint64 LibsshQtProcessStderr::writeData(const char */*data*/, qint64 /*len*/)
+void LibsshQtProcessStderr::queueCheckIo()
 {
-    return 0;
+    reinterpret_cast<LibsshQtProcess *>(parent())->queueCheckIo();
 }
+
 
 
 

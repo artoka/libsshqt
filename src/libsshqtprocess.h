@@ -50,17 +50,21 @@ public:
     static const char *enumToString(const OutputBehaviour value);
 
     void setCommand(QString command);
-    QString command();
+    QString command() const;
     int exitCode() const;
 
     void setStdoutBehaviour(OutputBehaviour behaviour, QString prefix = "");
     void setStderrBehaviour(OutputBehaviour behaviour, QString prefix = "");
     LibsshQtProcessStderr *stderr();
 
+    State state() const;
+
+    bool open(OpenMode ignored = 0);
+    void close();
+
+public slots:
     void openChannel();
     void closeChannel();
-
-    State state() const;
 
 signals:
     void opened();
@@ -70,11 +74,10 @@ signals:
 
 protected:
     void setState(State state);
-    void processState();
-    void checkIo();
     void queueCheckIo();
 
 private slots:
+    void processState();
     void handleClientError();
     void handleStdoutOutput();
     void handleStderrOutput();
@@ -82,17 +85,15 @@ private slots:
                       QString &prefix, QString &line);
 
 private:
-    QTimer      timer_;
-    State       state_;
-    QString     command_;
-    int         exit_code_;
-
-    QByteArray              stderr_buffer_;
-    LibsshQtProcessStderr  *stderr_;
+    QTimer                  timer_;
+    State                   state_;
+    QString                 command_;
+    int                     exit_code_;
 
     OutputBehaviour         stdout_behaviour_;
     QString                 stdout_output_prefix_;
 
+    LibsshQtProcessStderr  *stderr_;
     OutputBehaviour         stderr_behaviour_;
     QString                 stderr_output_prefix_;
 };
@@ -103,28 +104,18 @@ private:
     LibsshQtChannelStderr
 
 */
-class LibsshQtProcessStderr : public QIODevice
+class LibsshQtProcessStderr : public LibsshQtChannel
 {
     Q_OBJECT
     friend class LibsshQtProcess;
 
 public:
     explicit LibsshQtProcessStderr(LibsshQtProcess *parent);
-
-    qint64 bytesAvailable() const;
-    qint64 bytesToWrite() const;
-    bool isSequential();
-    bool canReadLine() const;
+    void close();
 
 protected:
-    bool open(OpenMode mode = QIODevice::ReadOnly);
-    void close();
-    qint64 readData(char *data, qint64 maxlen);
-    qint64 writeData(const char *data, qint64 len);
-
-private:
-    LibsshQtProcess *parent_;
-    QByteArray *err_buffer_;
+    bool open(OpenMode ignored = 0);
+    void queueCheckIo();
 };
 
 
