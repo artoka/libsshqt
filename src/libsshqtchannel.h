@@ -19,7 +19,6 @@ class LibsshQtChannel : public QIODevice
     Q_OBJECT
 
 public:
-
     Q_FLAGS(EofState)
     enum EofState
     {
@@ -28,11 +27,27 @@ public:
         EofSent
     };
 
-    explicit LibsshQtChannel(LibsshQtClient *parent);
-    ~LibsshQtChannel();
-    LibsshQtClient *client();
-
     static const char *enumToString(const EofState flag);
+
+    explicit LibsshQtChannel(bool            is_stderr,
+                             LibsshQtClient *client,
+                             QObject        *parent);
+
+
+// QIODevice API
+public:
+    virtual bool atEnd() const;
+    qint64 bytesAvailable() const;
+    qint64 bytesToWrite() const;
+    bool isSequential();
+    bool canReadLine() const;
+protected:
+    qint64 readData(char *data, qint64 maxlen);
+    qint64 writeData(const char *data, qint64 len);
+
+// LibsshQtChannel Api
+public:
+    LibsshQtClient *client();
 
     void setWriteSize(int write_size);
     void setReadBufferSize(int buffer_size);
@@ -48,27 +63,9 @@ public:
     QString errorMessage() const;
     int errorCode() const;
 
-public slots:
-    virtual void closeChannel() = 0;
-    virtual void openChannel() = 0;
-
-    // Implement QIODevice API
-public:
-    qint64 bytesAvailable() const;
-    qint64 bytesToWrite() const;
-    bool isSequential();
-    bool canReadLine() const;
-
 protected:
-    bool open(OpenMode mode = QIODevice::ReadWrite);
-    void close();
-    qint64 readData(char *data, qint64 maxlen);
-    qint64 writeData(const char *data, qint64 len);
-
-public slots:
-    virtual void checkIo();
+    void checkIo();
     virtual void queueCheckIo() = 0;
-    virtual void processState() = 0;
 
 private slots:
     void handleDebugChanged();
@@ -76,9 +73,10 @@ private slots:
 protected:
     QString         debug_prefix_;
     bool            debug_output_;
-
     LibsshQtClient *client_;
+
     ssh_channel     channel_;
+    bool            is_stderr_;
     EofState        eof_state_;
 
     int             buffer_size_;
