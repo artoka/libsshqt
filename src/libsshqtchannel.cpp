@@ -86,8 +86,8 @@ bool LibsshQtChannel::canReadLine() const
             ( read_buffer_.isEmpty() == false &&
               ( isOpen() == false ||
                 channel_ == 0 ||
-                ( ssh_channel_is_open(channel_) &&
-                  ssh_channel_poll(channel_, is_stderr_) == SSH_EOF )));
+                ssh_channel_is_open(channel_) == false ||
+                ssh_channel_poll(channel_, is_stderr_) == SSH_EOF ));
 }
 
 qint64 LibsshQtChannel::readData(char *data, qint64 maxlen)
