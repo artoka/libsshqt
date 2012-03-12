@@ -23,8 +23,12 @@
 
  I have tested libsshqt in OpenSUSE 12.1, with libssh 0.5.1 and Qt 4.7.4.
 
- I don't see any reason why it should not work in other environments, but
- patches are welcome if you find problems.
+ I do however recommend that you use at least libssh version 0.5.2, because
+ asynchronous mode is somewhat incomplete in older versions, and may block in
+ some libssh functions.
+
+ I don't see any reason why libsshqt should not work in other environments than
+ Linux, but patches are welcome if you find problems.
 
 
 
