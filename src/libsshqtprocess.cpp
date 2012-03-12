@@ -322,6 +322,15 @@ void LibsshQtProcess::processState()
              ssh_channel_poll(channel_, false) == SSH_EOF &&
              ssh_channel_poll(channel_, true)  == SSH_EOF ) {
 
+            // EOF state affects atEnd() and canReadLine() behavior,
+            // so emit readyRead signal so that users can do something about it.
+            if ( ! read_buffer_.isEmpty()) {
+                emit readyRead();
+            }
+            if ( ! stderr_->read_buffer_.isEmpty()) {
+                emit stderr_->readyRead();
+            }
+
             exit_code_ = ssh_channel_get_exit_status(channel_);
 
             LIBSSHQT_DEBUG("Process channel EOF");
