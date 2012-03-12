@@ -1,4 +1,5 @@
 *.o
+*.moc
 moc_*
 ui_*
 Makefile
@@ -10,3 +11,6 @@ libsshqt-runprocess
 libsshqt-processtofile
 libsshqt-filetoprocess
 libsshqt-runprocessgui
+
+libsshqt-test
+libsshqt-test-config
