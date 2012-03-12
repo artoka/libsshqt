@@ -256,7 +256,7 @@ QUrl LibsshQtClient::url() const
 /*!
     Set hostname, port and username options from QUrl
 */
-void LibsshQtClient::setUrl(QUrl &url)
+void LibsshQtClient::setUrl(const QUrl &url)
 {
     if ( url.scheme().toLower() == "ssh" ) {
         LIBSSHQT_DEBUG("Setting options from URL:" << url);

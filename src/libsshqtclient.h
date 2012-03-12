@@ -114,7 +114,7 @@ public:
     void setHostname(QString hostname);
     void setPort(quint16 port);
     void setVerbosity(LogVerbosity loglevel);
-    void setUrl(QUrl &url);
+    void setUrl(const QUrl &url);
 
     bool isDebugEnabled() const;
     QString username() const;
