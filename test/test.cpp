@@ -229,6 +229,152 @@ TestCaseReadlineStderr::TestCaseReadlineStderr(TestCaseOpts *opts) :
 
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// TestCaseIO
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+class TestCaseIO : public TestCaseBase
+{
+    Q_OBJECT
+
+public:
+    TestCaseIO(TestCaseOpts *opts);
+    quint16 posToValue(int pos);
+
+public slots:
+    void writeData();
+    void readData();
+
+public:
+    QIODevice *writedev;
+    QIODevice *readdev;
+
+    int error_count;
+    int max_uint16;
+    int write_pos;
+    int read_pos;
+};
+
+TestCaseIO::TestCaseIO(TestCaseOpts *opts) :
+    TestCaseBase(opts),
+    writedev(0),
+    readdev(0),
+    error_count(0),
+    max_uint16(0xFFFF),
+    write_pos(0),
+    read_pos(0)
+{
+}
+
+quint16 TestCaseIO::posToValue(int pos)
+{
+    int val = pos % ( max_uint16 + 1 );
+    //qDebug() << "Max:" << max << " Pos:" << pos << " Val:" << val;
+    return val;
+}
+
+void TestCaseIO::writeData()
+{
+    if ( writedev->bytesToWrite() == 0 && write_pos <= max_uint16 + 1 ) {
+        quint16 val = posToValue(write_pos);
+        QByteArray data(reinterpret_cast< const char* >( &val ), sizeof(val));
+        writedev->write(data);
+        write_pos++;
+    }
+}
+
+void TestCaseIO::readData()
+{
+    while ( readdev->bytesAvailable() >= 2 && read_pos <= max_uint16 + 1 ) {
+
+        quint16 read_val = 0;
+        readdev->read(reinterpret_cast< char* >( &read_val ), sizeof(quint16));
+
+        quint16 correct_val = posToValue(read_pos);
+        if ( read_val != correct_val ) {
+            error_count++;
+            qDebug() << "Position:"  << read_pos
+                     << " Read:"     << read_val
+                     << " Expected:" << correct_val
+                     << " Diff:"     << read_val - correct_val;
+        }
+        read_pos++;
+    }
+
+    if ( read_pos > max_uint16 ) {
+        qDebug() << "Found" << error_count << "errors";
+        if ( error_count == 0 ) {
+            testSuccess();
+        } else {
+            testFailed();
+        }
+    }
+}
+
+
+
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// TestCaseIOStdout
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+class TestCaseIOStdout : public TestCaseIO
+{
+    Q_OBJECT
+
+public:
+    TestCaseIOStdout(TestCaseOpts *opts);
+};
+
+TestCaseIOStdout::TestCaseIOStdout(TestCaseOpts *opts) :
+    TestCaseIO(opts)
+{
+    LibsshQtProcess *process = client->runCommand("cat");
+    process->setStdoutBehaviour(LibsshQtProcess::OutputManual);
+
+    readdev  = process;
+    writedev = process;
+
+    connect(process, SIGNAL(opened()),
+            this,    SLOT(writeData()));
+    connect(process, SIGNAL(bytesWritten(qint64)),
+            this,    SLOT(writeData()));
+    connect(process, SIGNAL(readyRead()),
+            this,    SLOT(readData()));
+}
+
+
+
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// TestCaseIOStderr
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+class TestCaseIOStderr : public TestCaseIO
+{
+    Q_OBJECT
+
+public:
+    TestCaseIOStderr(TestCaseOpts *opts);
+};
+
+TestCaseIOStderr::TestCaseIOStderr(TestCaseOpts *opts) :
+    TestCaseIO(opts)
+{
+    LibsshQtProcess *process = client->runCommand("cat 1>&2");
+    process->setStderrBehaviour(LibsshQtProcess::OutputManual);
+
+    readdev  = process->stderr();
+    writedev = process;
+
+    connect(process, SIGNAL(opened()),
+            this,    SLOT(writeData()));
+    connect(process, SIGNAL(bytesWritten(qint64)),
+            this,    SLOT(writeData()));
+    connect(readdev, SIGNAL(readyRead()),
+            this,    SLOT(readData()));
+}
+
+
+
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // Test
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -243,12 +389,12 @@ private Q_SLOTS:
     void testConnect();
     void testReadlineStdin();
     void testReadlineStderr();
+    void testIoStdout();
+    void testIoStderr();
 
 private:
     TestCaseOpts opts;
 };
-
-#define CONFIG_FILE
 
 Test::Test()
 {
@@ -297,6 +443,18 @@ void Test::testReadlineStderr()
 {
     TestCaseReadlineStderr testcase(&opts);
     QVERIFY2(opts.loop.exec() == 0, "Could not read lines correctly from STDERR");
+}
+
+void Test::testIoStdout()
+{
+    TestCaseIOStdout testcase(&opts);
+    QVERIFY2(opts.loop.exec() == 0, "Data corruption in STDOUT stream");
+}
+
+void Test::testIoStderr()
+{
+    TestCaseIOStderr testcase(&opts);
+    QVERIFY2(opts.loop.exec() == 0, "Data corruption in STDERR stream");
 }
 
 QTEST_MAIN(Test);
