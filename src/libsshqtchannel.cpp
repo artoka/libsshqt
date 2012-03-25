@@ -182,8 +182,8 @@ void LibsshQtChannel::checkIo()
             Q_ASSERT(written >= 0);
             write_buffer_.remove(0, written);
 
-            LIBSSHQT_DEBUG("Wrote" << written << "bytes to channel")
-                    if ( written > 0 ) {
+            LIBSSHQT_DEBUG("Wrote" << written << "bytes to channel");
+            if ( written > 0 ) {
                 emit_bytes_written = true;
             }
         }
