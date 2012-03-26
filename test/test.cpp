@@ -80,6 +80,9 @@ void TestCaseBase::handleError()
 // TestConnect
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that connecting to the ssh server works.
+*/
 class TestCaseConnect : public TestCaseBase
 {
     Q_OBJECT
@@ -109,6 +112,9 @@ void TestCaseConnect::connectTest()
 // TestCaseReadline
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that readline() and canReadLine() functions work properly.
+*/
 class TestCaseReadline : public TestCaseBase
 {
     Q_OBJECT
@@ -172,6 +178,9 @@ void TestCaseReadline::finished()
 // TestCaseReadlineStdout
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that readline() and canReadLine() functions work properly with STDOUT.
+*/
 class TestCaseReadlineStdout : public TestCaseReadline
 {
     Q_OBJECT
@@ -202,6 +211,9 @@ TestCaseReadlineStdout::TestCaseReadlineStdout(TestCaseOpts *opts) :
 // TestCaseReadlineStderr
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that readline() and canReadLine() functions work properly with STDERR.
+*/
 class TestCaseReadlineStderr : public TestCaseReadline
 {
     Q_OBJECT
@@ -232,6 +244,10 @@ TestCaseReadlineStderr::TestCaseReadlineStderr(TestCaseOpts *opts) :
 // TestCaseIO
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that every uint16 value can be written and read without error.
+   Basically this test checks for data corruption.
+*/
 class TestCaseIO : public TestCaseBase
 {
     Q_OBJECT
@@ -316,6 +332,10 @@ void TestCaseIO::readData()
 // TestCaseIOStdout
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that every uint16 value can be written and read without error
+   from STDOUT.
+*/
 class TestCaseIOStdout : public TestCaseIO
 {
     Q_OBJECT
@@ -347,6 +367,10 @@ TestCaseIOStdout::TestCaseIOStdout(TestCaseOpts *opts) :
 // TestCaseIOStderr
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+/*!
+   Test that every uint16 value can be written and read without error
+   from STDERR.
+*/
 class TestCaseIOStderr : public TestCaseIO
 {
     Q_OBJECT
