@@ -64,7 +64,7 @@
  LIBSSHQT_DEBUG or by enabling it programmatically by calling
  LibsshQtClient::setDebug().
 
- Setting libsshqt_DEBUG variable in a shell:
+ Setting LIBSSHQT_DEBUG variable in a shell:
 
     export LIBSSHQT_DEBUG=1
 
@@ -72,6 +72,27 @@
 
     LibsshQtClient *client = new LibsshQtClient();
     client->setDebug(true);
+
+
+
+ Examples
+==========
+
+ Check ./demos directory for inspiration. In particular ./demos/runprocess and
+ ./demos/runprocessgui should be insightful.
+
+
+
+ TODO
+======
+
+ - Turn libsshqt into a Qt library. So that you can easily use it in QMake
+   projects.
+
+ - Create pkg-config files. So that people who don’t like QMake can use it
+   easily.
+
+ - D-pointerify all classes. So that the binary API can be stable.
 
 
 
