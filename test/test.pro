@@ -19,3 +19,4 @@ SOURCES += test.cpp
 DEFINES += SRCDIR=\\\"$$PWD/\\\"
 
 include( ../libsshqt.pri )
+include( ../libssh.pri )

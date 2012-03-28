@@ -9,8 +9,8 @@ QT       += core gui
 TARGET = libsshqt-runprocessgui
 TEMPLATE = app
 
-#include(../../libsshqt.pri);
-include(../../libsshqtgui.pri)
+include( ../../libsshqtgui.pri )
+include( ../../libssh.pri )
 
 SOURCES += main.cpp\
         runprocessgui.cpp

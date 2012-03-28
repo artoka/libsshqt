@@ -14,7 +14,8 @@ CONFIG   -= app_bundle
 
 TEMPLATE = app
 
-include(../../libsshqt.pri)
+include( ../../libsshqt.pri )
+include( ../../libssh.pri )
 
 SOURCES += main.cpp \
     processtofile.cpp

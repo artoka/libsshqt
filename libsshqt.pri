@@ -9,6 +9,3 @@ SOURCES += $$PWD/src/libsshqtprocess.cpp
 SOURCES += $$PWD/src/libsshqtquestionconsole.cpp
 
 INCLUDEPATH += $$PWD/src
-
-CONFIG += link_pkgconfig
-PKGCONFIG += libssh
