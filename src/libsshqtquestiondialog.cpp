@@ -218,15 +218,15 @@ void LibsshQtQuestionDialog::handleUnknownHost()
     setState(StateUnknownHostDlg);
 
     QString msg = QString("%1 %2")
-            .arg(Qt::escape(client_->unknownHostMessage()))
+            .arg(QString(client_->unknownHostMessage()).toHtmlEscaped())
             .arg(tr("Do you want to trust this host?"));
 
     QString info = QString("<br>%1: <tt>%2:%3</tt><br>%4: <tt>%5</tt>")
-            .arg(Qt::escape(tr("Hostname")))
-            .arg(Qt::escape(client_->hostname()))
+            .arg(QString(tr("Hostname")).toHtmlEscaped())
+            .arg(QString(client_->hostname()).toHtmlEscaped())
             .arg(client_->port())
-            .arg(Qt::escape(tr("Key fingerprint")))
-            .arg(Qt::escape(client_->hostPublicKeyHash()));
+            .arg(QString(tr("Key fingerprint")).toHtmlEscaped())
+            .arg(QString(client_->hostPublicKeyHash()).toHtmlEscaped());
 
     showHostDlg(msg, info);
 }
@@ -267,12 +267,12 @@ void LibsshQtQuestionDialog::showNextKbiQuestion()
                        kbi_questions_.count() << ":" << question);
 
         QString msg = QString("%1 <tt>%2:%3</tt><br><br>%4")
-                           .arg(Qt::escape(tr("Authentication question from")))
-                           .arg(Qt::escape(client_->hostname()))
+                           .arg(QString(tr("Authentication question from")).toHtmlEscaped())
+                           .arg(QString(client_->hostname()).toHtmlEscaped())
                            .arg(client_->port())
-                           .arg(Qt::escape(question.question));
+                           .arg(QString(question.question).toHtmlEscaped());
         if ( ! question.instruction.isEmpty()) {
-            msg += "<br><br>" + Qt::escape(question.instruction);
+            msg += "<br><br>" + QString(question.instruction).toHtmlEscaped();
         }
 
         kbi_pos_++;
